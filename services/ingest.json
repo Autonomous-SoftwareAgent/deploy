@@ -1,6 +1,6 @@
 {
   "repo": "system_service/ingest",
-  "commit": "b1d635a40483a0e375e918874ac8f78dd35093b2",
+  "commit": "551b443fefdbf713628cd2f0887d6e87aeb0c6c8",
   "port": {
     "local": 8001,
     "container": 8080
