@@ -1,0 +1,10 @@
+# Tệp sinh khi chạy cả hệ ở local (mật khẩu local, compose của dịch vụ, tệp cấu hình trích từ commit)
+/local/.run/
+node_modules/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Tờ khai đích từ xa là chuyện của từng nơi cài (tên máy, vùng): không vào git
+/targets/*.json

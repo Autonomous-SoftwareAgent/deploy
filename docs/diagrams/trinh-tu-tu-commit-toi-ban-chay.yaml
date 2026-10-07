@@ -1,0 +1,122 @@
+id: "trinh-tu-tu-commit-toi-ban-chay"
+type: "sequence"
+title: "Từ commit của dịch vụ tới bản đóng gói (khai báo trước, build sau)"
+tab: "business"
+sources:
+  - "src/application/pin.js"
+  - "ci/decide.js"
+  - "ci/scan-image.js"
+  - ".github/workflows/service-image.yml"
+explain:
+  meaning: "Sơ đồ cho biết một thay đổi mã của dịch vụ đi qua những tay nào trước khi thành bản đóng gói, và chỗ nào quyết định có bản hay không. Điểm cốt lõi: dịch vụ phải nói trước nó muốn chạy commit nào; chỉ commit đó mới được đóng gói, và chỉ sau khi test của dịch vụ qua."
+  read:
+    - "Đọc từ trên xuống theo số bước; mũi tên là lời gọi, mũi tên quay về chính mình là việc tự làm."
+    - "Bước 1 đến 3 là việc của phiên dịch vụ trên máy làm việc; các bước sau xảy ra trên GitHub mà không ai bấm gì."
+    - "Khung rẽ nhánh ở cuối là điểm quyết định duy nhất: nhánh trên có bản, nhánh dưới không có."
+    - "Phần tiếp theo (chạy bản đó ở máy) nằm ở sơ đồ trinh-tu-chay-ban-o-local."
+  details:
+    - term: "Phiên của dịch vụ"
+      text: "Phiên Claude (hoặc người) đang làm một dịch vụ. Nó là bên duy nhất được ghi tờ khai báo của dịch vụ đó."
+    - term: "Repo deploy"
+      text: "Repo Autonomous-SoftwareAgent/deploy; mỗi dịch vụ một tệp services/<dịch-vụ>.json ghi commit nó muốn chạy."
+    - term: "Repo dịch vụ"
+      text: "Repo Autonomous-SoftwareAgent/svc-<dịch-vụ> trên GitHub; workflow của nó có job test riêng rồi gọi workflow dùng chung."
+    - term: "Workflow dùng chung"
+      text: "Tệp service-image.yml của repo deploy, chạy trong lần chạy của repo dịch vụ nên dùng secret của tổ chức."
+    - term: "Bước 2"
+      text: "Lệnh node infra/bsn.js pin <dịch-vụ> --apply, rồi commit và đẩy repo deploy. Phải xong TRƯỚC bước 3: workflow đọc tờ khai báo trên GitHub ở đúng lúc nó chạy."
+    - term: "Bước 4"
+      text: "Job test là của dịch vụ, nền không biết nó test bằng gì; job image chỉ chạy sau nó nhờ dòng needs: test trong workflow của dịch vụ."
+    - term: "Bước 7"
+      text: "ci/decide.js: chỉ nhánh main, tên repo phải đúng tên dịch vụ, và commit đang chạy phải trùng commit trong tờ khai báo."
+    - term: "Hỏi bản main- gần nhất"
+      text: "Máy của GitHub không giữ lớp giữa các lần chạy, nên build lấy lớp từ bản trước của chính dịch vụ đó; lớp không đổi không phải tải lên lại."
+    - term: "scan-image.js quét bí mật"
+      text: "Kho Docker Hub công khai; thấy thứ giống bí mật thì dừng trước bước đẩy."
+    - term: "Đẩy svc-<dịch-vụ>:main-<12 ký tự commit>"
+      text: "Bản của commit đó đã có thì không ghi đè; thiếu secret Docker Hub thì cảnh báo và không đẩy."
+  pitfalls:
+    - "Đẩy mã trước khi đẩy tờ khai báo thì rơi vào nhánh không đóng gói dù test xanh; khi đó phải khai rồi chạy tay workflow của dịch vụ."
+    - "Job xanh không có nghĩa là đã có bản: phải đọc dòng quyết định trong nhật ký hoặc chạy lệnh images."
+    - "Workflow chỉ đóng gói commit ở đầu nhánh main của lần chạy; khai một commit nằm giữa lịch sử thì không có bản."
+    - "Nền không kiểm được workflow của dịch vụ có thật sự chạy test trước job image hay không."
+    - "Sơ đồ dừng ở Docker Hub. Đưa bản lên máy chủ GCP CHƯA có mã."
+  basis: "907e2eeefaa349c7"
+autonumber: true
+participants:
+  - id: "dv"
+    label: "Phiên của dịch vụ"
+    actor: true
+  - id: "deploy"
+    label: "Repo deploy"
+    actor: false
+  - id: "repo"
+    label: "Repo dịch vụ"
+    actor: false
+  - id: "wf"
+    label: "Workflow dùng chung"
+    actor: false
+  - id: "hub"
+    label: "Docker Hub"
+    actor: false
+steps:
+  - message:
+      from: "dv"
+      to: "dv"
+      text: "Commit mã ở máy, chạy test của dịch vụ"
+      reply: false
+  - message:
+      from: "dv"
+      to: "deploy"
+      text: "pin: ghi mã commit vào services/<dịch-vụ>.json, commit và đẩy"
+      reply: false
+  - message:
+      from: "dv"
+      to: "repo"
+      text: "Đẩy mã lên nhánh main"
+      reply: false
+  - message:
+      from: "repo"
+      to: "repo"
+      text: "Job test của dịch vụ"
+      reply: false
+  - message:
+      from: "repo"
+      to: "wf"
+      text: "Test qua: gọi job image"
+      reply: false
+  - message:
+      from: "wf"
+      to: "deploy"
+      text: "Lấy ci/ và services/ về"
+      reply: false
+  - message:
+      from: "wf"
+      to: "wf"
+      text: "decide.js: commit đang chạy có trùng commit đã khai không"
+      reply: false
+  - alt:
+      branches:
+        - when: "Trùng commit đã khai"
+          steps:
+            - message:
+                from: "wf"
+                to: "hub"
+                text: "Hỏi bản main- gần nhất để dùng lại lớp"
+                reply: false
+            - message:
+                from: "wf"
+                to: "wf"
+                text: "Build, ghi commit vào bản; scan-image.js quét bí mật"
+                reply: false
+            - message:
+                from: "wf"
+                to: "hub"
+                text: "Đẩy svc-<dịch-vụ>:main-<12 ký tự commit>"
+                reply: false
+      otherwise:
+        steps:
+          - note:
+              over:
+                - "wf"
+              text: "Không đóng gói: job vẫn xanh, nhật ký nêu lý do"

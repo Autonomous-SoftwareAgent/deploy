@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bảng điều khiển deploy</title>
+<link rel="stylesheet" href="/web/styles.css">
+</head>
+<body>
+<header>
+  <h1>Bảng điều khiển deploy</h1>
+  <span class="grow"></span>
+  <span id="who" class="hint"></span>
+  <button id="logout" type="button" hidden>Đăng xuất</button>
+</header>
+<main>
+  <section id="login" class="card" hidden></section>
+  <section id="app" hidden>
+    <div id="memory" class="notice warn" hidden>CHẾ ĐỘ THỬ TRONG BỘ NHỚ: mọi nút ở đây chỉ đổi dữ liệu mẫu, không hệ nào bị đụng.</div>
+    <div id="target" class="notice info"></div>
+    <div id="error" class="notice bad" hidden></div>
+    <div id="services"></div>
+    <div class="card">
+      <h2>Việc vừa chạy</h2>
+      <p class="hint">Bảng điều khiển chỉ nhớ các việc từ lúc nó khởi động; lịch sử lâu dài nằm ở sổ deploy của từng dịch vụ.</p>
+      <div id="jobs"></div>
+    </div>
+  </section>
+</main>
+<dialog id="confirm">
+  <form method="dialog">
+    <h2 id="confirmTitle"></h2>
+    <p id="confirmText"></p>
+    <div class="actions end">
+      <button value="no" type="submit">Thôi</button>
+      <button value="yes" type="submit" class="primary" id="confirmYes"></button>
+    </div>
+  </form>
+</dialog>
+<script type="module" src="/web/main.js"></script>
+</body>
+</html>

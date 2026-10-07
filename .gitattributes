@@ -1,0 +1,2 @@
+# Mọi tệp chữ lưu và lấy ra bằng dấu xuống dòng LF, kể cả trên Windows (tệp chạy trong ảnh Linux hỏng nếu là CRLF).
+* text=auto eol=lf

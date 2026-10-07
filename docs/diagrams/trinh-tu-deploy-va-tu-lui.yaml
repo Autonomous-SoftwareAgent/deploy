@@ -1,0 +1,137 @@
+id: "trinh-tu-deploy-va-tu-lui"
+type: "sequence"
+title: "Deploy một dịch vụ: bản khỏe thì giữ, bản hỏng thì tự bật lại bản trước"
+tab: "business"
+sources:
+  - "src/application/deploy.js"
+  - "src/application/rollback.js"
+  - "src/application/switch-version.js"
+  - "src/domain/deploy-policy.js"
+  - "src/domain/ledger.js"
+explain:
+  meaning: "Sơ đồ cho biết một lệnh deploy làm gì và dừng ở đâu. Điều quan trọng nhất: bản mới phải tự chứng minh nó khỏe trước khi được coi là bản đang chạy; không chứng minh được thì bản cũ quay lại mà không cần ai can thiệp, và người gọi nhận mã lỗi rõ ràng."
+  read:
+    - "Đọc từ trên xuống theo số bước; nét đứt là câu trả lời cho người gõ lệnh."
+    - "Khung rẽ nhánh thứ nhất: commit đã khai có bản chưa. Chưa có thì dừng ngay, không đụng gì."
+    - "Khung rẽ nhánh thứ hai: kết quả kiểm sức khỏe. Nhánh dưới là đường tự bật lại bản trước."
+  details:
+    - term: "Lệnh deploy"
+      text: "node infra/bsn.js deploy <dịch-vụ>; không có --apply thì chỉ in kế hoạch. Có --json thì trả một đối tượng: ok, from, to, healthy, reverted, reason."
+    - term: "Đích (máy chạy lệnh)"
+      text: "Docker trên máy làm việc. Đích là máy chủ CHƯA có."
+    - term: "Sổ deploy"
+      text: "Tệp local/.run/deployments.json, không commit: bản đang chạy, bản liền trước và 50 lần đưa lên gần nhất. Rollback dựa vào sổ này để biết bản nào đã từng chạy khỏe."
+    - term: "Bước 2"
+      text: "Nếu commit đang chạy đã trùng commit được ghim thì lệnh dừng ở đây, không đổi gì (không vẽ trong hình)."
+    - term: "Kéo bản, kiểm commit ghi bên trong"
+      text: "Ảnh đã có sẵn ở máy cũng được kiểm: trùng nhãn mà bên trong ghi commit khác thì bị coi là hỏng."
+    - term: "Bật đúng dịch vụ đó với bản mới"
+      text: "Tệp compose chỉ có một dịch vụ và không dọn dịch vụ khác; đã đo: dịch vụ còn lại không bị khởi động lại."
+    - term: "Gọi đường kiểm sức khỏe (tối đa 120 giây)"
+      text: "Đường kiểm do dịch vụ khai trong tờ khai báo; đổi thời gian chờ bằng biến BSN_HEALTH_SECONDS."
+    - term: "Bật lại bản đang chạy trước đó"
+      text: "Là commit đọc được ở bước 2. Lần đầu tiên deploy một dịch vụ thì không có bản nào để bật lại, lệnh nói rõ điều đó."
+    - term: "tờ khai báo không bị sửa"
+      text: "Sau một lần deploy hỏng, tờ khai báo vẫn ghi commit hỏng còn đích chạy commit cũ; lệnh status báo chỗ lệch đó."
+  pitfalls:
+    - "Chỉ bản chương trình được bật lại. Dữ liệu bản hỏng đã ghi vào cơ sở dữ liệu trong lúc nó chạy KHÔNG được lùi."
+    - "Khỏe ở đây chỉ là đường kiểm sức khỏe trả lời tốt; nó không chứng minh nghiệp vụ chạy đúng."
+    - "Trong lúc bản mới đang được bật và kiểm, dịch vụ có thể ngừng trả lời: đây là thay bản tại chỗ, không phải chuyển tải dần."
+    - "Nếu bật lại bản cũ cũng hỏng thì dịch vụ ở trạng thái hỏng và lệnh chỉ báo, không thử tiếp; trường hợp này mới có test với Docker giả."
+    - "Đã thử thật trên hệ local ngày 2026-10-07. Trên máy chủ thì CHƯA: kiểm sức khỏe qua mạng, cấu hình production và vị trí của sổ còn phải làm."
+  basis: "2116c0ae675b5edf"
+autonumber: true
+participants:
+  - id: "nv"
+    label: "Người vận hành hoặc agent"
+    actor: true
+  - id: "bsn"
+    label: "Lệnh deploy"
+    actor: false
+  - id: "hub"
+    label: "Docker Hub"
+    actor: false
+  - id: "may"
+    label: "Đích (máy chạy lệnh)"
+    actor: false
+  - id: "so"
+    label: "Sổ deploy"
+    actor: false
+steps:
+  - message:
+      from: "nv"
+      to: "bsn"
+      text: "deploy <dịch-vụ> --apply"
+      reply: false
+  - message:
+      from: "bsn"
+      to: "may"
+      text: "Đọc commit đang chạy (nhãn của container)"
+      reply: false
+  - message:
+      from: "bsn"
+      to: "hub"
+      text: "Bản của commit được ghim đã có chưa"
+      reply: false
+  - alt:
+      branches:
+        - when: "Chưa có bản (chờ build)"
+          steps:
+            - message:
+                from: "bsn"
+                to: "nv"
+                text: "Từ chối, không đổi gì, mã thoát 1"
+                reply: true
+      otherwise:
+        steps:
+          - message:
+              from: "bsn"
+              to: "hub"
+              text: "Kéo bản, kiểm commit ghi bên trong"
+              reply: false
+          - message:
+              from: "bsn"
+              to: "may"
+              text: "Bật đúng dịch vụ đó với bản mới"
+              reply: false
+          - message:
+              from: "bsn"
+              to: "may"
+              text: "Gọi đường kiểm sức khỏe (tối đa 120 giây)"
+              reply: false
+  - alt:
+      branches:
+        - when: "Khỏe"
+          steps:
+            - message:
+                from: "bsn"
+                to: "so"
+                text: "Ghi: bản mới đang chạy, bản cũ là bản liền trước"
+                reply: false
+            - message:
+                from: "bsn"
+                to: "nv"
+                text: "Đã deploy, mã thoát 0"
+                reply: true
+      otherwise:
+        steps:
+          - message:
+              from: "bsn"
+              to: "so"
+              text: "Ghi lần hỏng kèm lý do"
+              reply: false
+          - message:
+              from: "bsn"
+              to: "may"
+              text: "Bật lại bản đang chạy trước đó, gọi lại đường kiểm sức khỏe"
+              reply: false
+          - message:
+              from: "bsn"
+              to: "so"
+              text: "Ghi lần tự bật lại (được hay không)"
+              reply: false
+          - message:
+              from: "bsn"
+              to: "nv"
+              text: "Báo lý do, mã thoát 1; tờ khai báo không bị sửa"
+              reply: true

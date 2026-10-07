@@ -1,0 +1,62 @@
+{
+  "repo": "system_service/payment-hub",
+  "commit": "d732996ec25d0c6d12bcdc2fc880b56feabd70ed",
+  "build": {
+    "target": "hub"
+  },
+  "port": {
+    "local": 8000,
+    "container": 8080
+  },
+  "health": "/health",
+  "aliases": [
+    "hub"
+  ],
+  "env": {
+    "HUB_CONFIG": "/config/config.json"
+  },
+  "secretEnv": [
+    "HUB_API_TOKEN",
+    "MOMO_SECRET_KEY"
+  ],
+  "database": {
+    "name": "payment_hub",
+    "urlEnv": "HUB_DATABASE_URL",
+    "urlFormat": "postgres://{user}:{password}@{host}:{port}/{db}"
+  },
+  "broker": {
+    "bootstrapEnv": null
+  },
+  "topics": [
+    "payment.events.v1",
+    "payment.commands.v1",
+    "payment.commands.v1.dlq"
+  ],
+  "files": [
+    {
+      "from": "infra/local/hub.config.json",
+      "to": "/config/config.json"
+    }
+  ],
+  "sidecars": {
+    "momo-sim": {
+      "target": "sim",
+      "port": {
+        "local": 8100,
+        "container": 8081
+      },
+      "env": {
+        "SIM_PORT": "8081",
+        "SIM_HOST": "0.0.0.0",
+        "SIM_PARTNER_CODE": "MOMOLOCAL01",
+        "SIM_ACCESS_KEY": "local-access-key-not-real",
+        "SIM_SECRET_KEY": {
+          "secret": "MOMO_SECRET_KEY"
+        }
+      }
+    }
+  },
+  "cloud": {
+    "route": null
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "repo": "system_service/ingest",
+  "commit": "b1d635a40483a0e375e918874ac8f78dd35093b2",
+  "port": {
+    "local": 8001,
+    "container": 8080
+  },
+  "health": "/healthz",
+  "env": {},
+  "secretEnv": [
+    "INGEST_INTERNAL_TOKEN"
+  ],
+  "database": {
+    "name": "ingest",
+    "urlEnv": "INGEST_DATABASE_URL",
+    "urlFormat": "postgresql+psycopg://{user}:{password}@{host}:{port}/{db}"
+  },
+  "broker": {
+    "bootstrapEnv": "INGEST_KAFKA_BOOTSTRAP_SERVERS"
+  },
+  "topics": [
+    "ingest.ari.inventory",
+    "ingest.ari.restrictions",
+    "ingest.ari.rates"
+  ],
+  "cloud": {
+    "route": null
+  }
+}

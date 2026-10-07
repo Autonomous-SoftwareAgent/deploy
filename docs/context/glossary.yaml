@@ -1,0 +1,83 @@
+schema: 1
+terms:
+  - term: "bản"
+    means: "Bản đóng gói (ảnh Docker) của đúng một commit của một dịch vụ, nằm trên Docker Hub"
+    also:
+      - "bản đóng gói"
+      - "ảnh"
+      - "image"
+      - "bản CI"
+    refs: []
+    evidence:
+      - file: "lib.js"
+        line: 169
+      - file: "lib.js"
+        line: 176
+    updated: "2026-10-07"
+  - term: "chờ build"
+    means: "Commit đã được ghim nhưng chưa có bản trên Docker Hub; bình thường khi vừa khai báo, nhưng chưa chạy hay deploy được commit đó"
+    also:
+      - "CHỜ BUILD"
+      - "đã khai chưa có bản"
+      - "khai báo trước build sau"
+    refs: []
+    evidence:
+      - file: "bsn.js"
+        line: 147
+      - file: "ci/decide.js"
+        line: 40
+    updated: "2026-10-07"
+  - term: "ghim"
+    means: "Ghi mã commit mà một dịch vụ muốn chạy vào tờ khai báo của nó; còn gọi là khai báo commit"
+    also:
+      - "pin"
+      - "khai báo commit"
+      - "khai commit"
+      - "bản ghim"
+      - "commit được ghim"
+    refs: []
+    evidence:
+      - file: "bsn.js"
+        line: 172
+      - file: "lib.js"
+        line: 59
+    updated: "2026-10-07"
+  - term: "nền"
+    means: "Nền deploy và vận hành dùng chung cho mọi dịch vụ, tức repo deploy (thư mục infra/); không phải một dịch vụ nghiệp vụ"
+    also:
+      - "nền deploy"
+      - "infra"
+      - "repo deploy"
+      - "platform"
+    refs: []
+    evidence:
+      - file: "README.md"
+        line: 3
+    updated: "2026-10-07"
+  - term: "nhãn bản"
+    means: "Tên của một bản trên Docker Hub: main-<12 ký tự đầu của commit>; không bao giờ là latest"
+    also:
+      - "tag"
+      - "nhãn ảnh"
+      - "main-<commit>"
+    refs: []
+    evidence:
+      - file: "ci/decide.js"
+        line: 33
+      - file: "lib.js"
+        line: 169
+    updated: "2026-10-07"
+  - term: "tờ khai báo"
+    means: "Tệp services/<dịch-vụ>.json: mỗi dịch vụ một tệp, do chính nó ghi, nói nó muốn chạy commit nào và cần gì để chạy"
+    also:
+      - "tệp khai báo"
+      - "services.json"
+      - "manifest"
+      - "tờ ghim"
+    refs: []
+    evidence:
+      - file: "lib.js"
+        line: 40
+      - file: "lib.js"
+        line: 77
+    updated: "2026-10-07"

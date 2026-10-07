@@ -1,0 +1,33 @@
+# Dọn bản đóng gói cũ trên Docker Hub (S-023): mỗi dịch vụ giữ số bản ghi ở registry.keep trong platform.json,
+# cùng bản đang được ghim và bản ghim liền trước. Chạy theo lịch thì xóa thật; chạy tay thì mặc định chỉ in kế hoạch.
+# Cần secret DOCKERHUB_USERNAME và DOCKERHUB_TOKEN (token có quyền xóa). Thiếu thì không làm gì.
+name: prune
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Xóa thật (bỏ trống thì chỉ in kế hoạch)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency: prune-images
+jobs:
+  prune:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # cần lịch sử của tờ khai báo để biết bản ghim liền trước
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Dọn bản cũ
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}
+        run: |
+          if [ "$APPLY" = "true" ]; then node ci/prune-images.js --apply; else node ci/prune-images.js; fi

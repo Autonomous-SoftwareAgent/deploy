@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "github": {
+    "org": "Autonomous-SoftwareAgent",
+    "platformRepo": "deploy",
+    "serviceRepoPrefix": "svc-"
+  },
+  "registry": {
+    "namespace": "nguyen1410",
+    "repoPrefix": "svc-",
+    "branch": "main",
+    "keep": 20
+  }
+}

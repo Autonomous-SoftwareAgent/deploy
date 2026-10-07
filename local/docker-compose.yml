@@ -1,0 +1,59 @@
+# Tầng dùng chung để chạy CẢ HỆ trên máy local (quyết định S-017). KHÔNG dùng cho production.
+# Không chạy tệp này bằng tay: dùng `node infra/bsn.js up --apply` (lệnh đó sinh mật khẩu local, tạo cơ sở dữ liệu và topic cho từng dịch vụ).
+# Mỗi dịch vụ một cơ sở dữ liệu riêng trong cùng một PostgreSQL; ở đây dùng chung một tài khoản cho gọn, production phải tách tài khoản.
+name: bsn-local
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: bsn-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bsn
+      POSTGRES_PASSWORD: ${BSN_PG_PASSWORD:?chạy qua node infra/bsn.js up --apply}
+      POSTGRES_DB: postgres
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bsn -d postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "127.0.0.1:55440:5432"
+    security_opt:
+      - no-new-privileges:true
+
+  # Broker nói giao thức Kafka. Trong mạng chung: redpanda:9092. Từ máy host: 127.0.0.1:19192.
+  # Cùng phiên bản với compose chạy một mình của payment-hub; cổng host khác (19192) để không đụng compose đó.
+  redpanda:
+    image: redpandadata/redpanda:v25.1.7
+    container_name: bsn-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19192
+      - --advertise-kafka-addr=internal://redpanda:9092,external://127.0.0.1:19192
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health --exit-when-healthy -X brokers=redpanda:9092 || exit 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    ports:
+      - "127.0.0.1:19192:19192"
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  default:
+    name: bsn-local
+
+volumes:
+  pg-data:
+  redpanda-data:

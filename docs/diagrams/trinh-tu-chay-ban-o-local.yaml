@@ -1,0 +1,119 @@
+id: "trinh-tu-chay-ban-o-local"
+type: "sequence"
+title: "Chạy bản đã khai ở hệ local (up --pull)"
+tab: "business"
+sources:
+  - "src/application/stack.js"
+  - "src/application/images.js"
+  - "src/application/get-images.js"
+  - "src/application/prepare-tier.js"
+  - "local/docker-compose.yml"
+explain:
+  meaning: "Sơ đồ cho biết lệnh up --pull làm gì để máy làm việc chạy đúng các bản mà GitHub đã đóng gói, không build lại tại chỗ. Điểm quan trọng là bước so commit: thứ chạy ở máy chắc chắn là bản của commit đã khai, không phải một bản trùng tên."
+  read:
+    - "Đọc từ trên xuống theo số bước; nét đứt là câu trả lời."
+    - "Ba bước đầu là hỏi xem bản đã có chưa; từ bước 4 là chạy thật."
+    - "Khung rẽ nhánh là kết quả của bước so commit: khớp thì chạy, không khớp thì dừng."
+  details:
+    - term: "Người vận hành hoặc agent"
+      text: "Ai gõ lệnh cũng được; lệnh images và status có --json để agent đọc kết quả."
+    - term: "Lệnh bsn.js"
+      text: "Không có --apply thì lệnh up chỉ in kế hoạch và không gọi Docker."
+    - term: "Docker ở máy"
+      text: "Docker trên máy làm việc; tầng dùng chung gồm PostgreSQL, broker Redpanda và mạng bsn-local."
+    - term: "CÓ hoặc CHỜ BUILD"
+      text: "CHỜ BUILD là đã khai nhưng chưa có bản; up --pull sẽ dừng ở bước kéo với dịch vụ đó."
+    - term: "Bước 6"
+      text: "Mỗi dịch vụ một cơ sở dữ liệu trong PostgreSQL chung; topic tạo với 3 phân vùng. Chỉ tạo thứ còn thiếu."
+    - term: "Bước 8"
+      text: "Đọc nhãn org.opencontainers.image.revision mà workflow ghi vào bản lúc đóng gói."
+    - term: "build đồ giả lập từ cùng commit"
+      text: "Đồ giả lập đi kèm dịch vụ không lên Docker Hub, nên luôn build tại chỗ từ đúng commit được ghim; tệp cấu hình cũng lấy từ commit đó."
+    - term: "Gọi đường kiểm sức khỏe, tối đa 120 giây"
+      text: "Đường kiểm do dịch vụ khai trong tờ khai báo; không khỏe thì lệnh thoát mã 1."
+  pitfalls:
+    - "Không có --pull thì lệnh up build tại chỗ từ commit được ghim thay vì kéo; bản chạy khi đó không phải bản CI."
+    - "Ảnh chính đã có sẵn ở máy với đúng nhãn commit thì không kéo lại."
+    - "Đây là môi trường thử trên máy làm việc: một tài khoản PostgreSQL cho mọi dịch vụ, container không có rào cứng. Không phải cách chạy trên máy chủ."
+    - "Lệnh không tự quay về bản trước khi dịch vụ không khỏe; tự quay lui là việc của lệnh deploy, CHƯA có."
+  basis: "3ac3d995b9b3435a"
+autonumber: true
+participants:
+  - id: "nv"
+    label: "Người vận hành hoặc agent"
+    actor: true
+  - id: "bsn"
+    label: "Lệnh bsn.js"
+    actor: false
+  - id: "hub"
+    label: "Docker Hub"
+    actor: false
+  - id: "may"
+    label: "Docker ở máy"
+    actor: false
+steps:
+  - message:
+      from: "nv"
+      to: "bsn"
+      text: "images"
+      reply: false
+  - message:
+      from: "bsn"
+      to: "hub"
+      text: "Hỏi bản của từng commit được ghim"
+      reply: false
+  - message:
+      from: "hub"
+      to: "bsn"
+      text: "CÓ hoặc CHỜ BUILD"
+      reply: true
+  - message:
+      from: "nv"
+      to: "bsn"
+      text: "up --pull --apply"
+      reply: false
+  - message:
+      from: "bsn"
+      to: "may"
+      text: "Bật PostgreSQL và broker chung, chờ khỏe"
+      reply: false
+  - message:
+      from: "bsn"
+      to: "may"
+      text: "Tạo cơ sở dữ liệu và topic còn thiếu"
+      reply: false
+  - message:
+      from: "bsn"
+      to: "hub"
+      text: "Kéo bản main-<commit> của từng dịch vụ"
+      reply: false
+  - message:
+      from: "bsn"
+      to: "bsn"
+      text: "Đọc commit ghi bên trong bản, so với commit được ghim"
+      reply: false
+  - alt:
+      branches:
+        - when: "Khớp"
+          steps:
+            - message:
+                from: "bsn"
+                to: "may"
+                text: "Gắn nhãn cục bộ; build đồ giả lập từ cùng commit"
+                reply: false
+            - message:
+                from: "bsn"
+                to: "may"
+                text: "Chạy dịch vụ trên mạng chung, cổng 127.0.0.1 theo tờ khai báo"
+                reply: false
+            - message:
+                from: "bsn"
+                to: "may"
+                text: "Gọi đường kiểm sức khỏe, tối đa 120 giây"
+                reply: false
+      otherwise:
+        steps:
+          - note:
+              over:
+                - "bsn"
+              text: "Từ chối bản, dừng; không tự chuyển sang build"

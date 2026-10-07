@@ -1,0 +1,86 @@
+schema: 1
+diagrams:
+  - id: "tu-sinh-cac-lop"
+    review:
+      verdict: "đúng"
+      note: ""
+      basis: "35b8ae7b7b2f7384"
+      at: "2026-10-07"
+    explain:
+      meaning: "Hình do máy đọc từ lệnh nhập trong mã đã commit, không do người vẽ. Nó là bằng chứng độc lập rằng bốn lớp phụ thuộc đúng một chiều: luật thuần không dùng ai, ca sử dụng chỉ dùng luật, bộ nối chỉ dùng luật, cửa vào dùng ca sử dụng, và chỉ nơi lắp ráp biết tất cả. Nhờ vậy đổi Docker hay đổi giao diện không làm đổi luật deploy."
+      read:
+        - "Mỗi ô là một lớp đã khai trong docs/service.yaml kèm số tệp; mũi tên đọc là lớp ở gốc NHẬP lớp ở đầu, số trên mũi tên là số lệnh nhập."
+        - "Tìm mũi tên đi VÀO ô Domain: mọi lớp đều dùng nó. Không có mũi tên nào đi RA từ ô Domain."
+        - "Không có mũi tên từ Application sang Infrastructure hay Interfaces: ca sử dụng không biết bộ nối nào đứng sau."
+        - "Ô Nơi lắp ráp có mũi tên tới Application, Infrastructure và Interfaces: đó là chủ ý, nó là chỗ duy nhất ghép các phần."
+      details:
+        - term: "Domain: luật thuần"
+          text: "Sáu tệp trong src/domain; chỉ nhập lẫn nhau."
+        - term: "Application: ca sử dụng và cổng"
+          text: "21 lệnh nhập sang Domain là các ca sử dụng hỏi luật và dùng cách đặt tên."
+        - term: "Infrastructure: bộ nối"
+          text: "9 lệnh nhập sang Domain: bộ nối dùng tên bản, hằng số của tầng dùng chung và luật của sổ deploy. Nó không nhập ca sử dụng nào."
+        - term: "Interfaces: dòng lệnh, máy chủ web, giao diện"
+          text: "Gồm cả bsn.js. Mũi tên tới Nơi lắp ráp là của bsn.js (cửa vào gọi composition); các tệp trong src/interfaces không nhập composition hay bộ nối."
+        - term: "Nơi lắp ráp"
+          text: "src/composition.js: 19 lệnh nhập bộ nối và 15 lệnh nhập ca sử dụng."
+        - term: "Tệp phụ và workflow của CI"
+          text: "Ba lệnh nhập đều của ci/prune-images.js (chạy trong repo đầy đủ). ci/decide.js và ci/scan-image.js không nhập gì ngoài ci/."
+      pitfalls:
+        - "Máy chỉ thấy lệnh nhập viết rõ trong mã. Quan hệ lúc chạy không có ở đây: giao diện gọi máy chủ web qua HTTP, bảng điều khiển chạy lệnh bsn.js trong tiến trình con."
+        - "Hình cho biết mã hiện đúng chiều; thứ NGĂN mã đi sai chiều là test/architecture.test.js."
+        - "Bộ nối cài các cổng của application/ports.js nhưng không nhập tệp đó, nên không có mũi tên Infrastructure sang Application; việc 'đủ hàm của cổng' do assertPort và test hợp đồng kiểm."
+      basis: "35b8ae7b7b2f7384"
+  - id: "tu-sinh-cua-vao-ra"
+    review:
+      verdict: "đúng"
+      note: ""
+      basis: "bcbae7c63e493e0c"
+      at: "2026-10-07"
+    explain:
+      meaning: "Hình cho biết bên ngoài gọi vào repo deploy qua những đường nào và repo deploy cần những gì ở bên ngoài. Các đường dẫn do máy đọc từ bảng định tuyến của bảng điều khiển; phần phụ thuộc lấy từ docs/service.yaml."
+      read:
+        - "Bên trái là cửa vào (đường dẫn HTTP), giữa là repo deploy, bên phải là thứ nó phụ thuộc."
+        - "Các đường dẫn được gộp theo đoạn đầu; dòng phụ liệt kê từng đường."
+      details:
+        - term: "/api"
+          text: "Sáu đường của bảng điều khiển. Trừ /api/login, tất cả đòi đăng nhập (phiên hoặc token)."
+        - term: "/web"
+          text: "Tệp của giao diện; mở được khi chưa đăng nhập vì không chứa dữ liệu."
+        - term: "/healthz"
+          text: "Chỉ cho biết bảng điều khiển còn sống; không nói gì về các dịch vụ."
+        - term: "Docker trên máy chạy lệnh"
+          text: "Đích của deploy và rollback hiện luôn là máy đang chạy lệnh."
+      pitfalls:
+        - "Các đường dẫn này chỉ nghe trên 127.0.0.1 của máy chạy bảng điều khiển; chúng không phải API công khai."
+        - "Cửa vào chính cho agent và người gõ lệnh là dòng lệnh bsn.js; hình này không vẽ dòng lệnh."
+        - "Cửa vào cho dịch vụ (workflow dùng chung, tờ khai báo) cũng không phải đường dẫn HTTP nên không có ở đây."
+      basis: "bcbae7c63e493e0c"
+  - id: "tu-sinh-phu-thuoc-module"
+    review:
+      verdict: "đúng"
+      note: ""
+      basis: "e2271f1905015b47"
+      at: "2026-10-07"
+    explain:
+      meaning: "Hình do máy đọc từ lệnh nhập trong mã đã commit, chi tiết tới từng thư mục. Dùng khi cần biết sửa một thư mục thì thư mục nào có thể bị ảnh hưởng, và để thấy mỗi lớp lớn cỡ nào."
+      read:
+        - "Mỗi khung là một lớp, mỗi ô là một thư mục kèm số tệp và số dòng."
+        - "Mũi tên mảnh nối hai thư mục trong cùng một lớp; mũi tên đậm nối hai lớp và đã gộp mọi lệnh nhập giữa chúng thành một số."
+        - "Danh sách đủ từng tệp nhập tệp nào nằm dưới hình (đọc bằng diagram_get)."
+      details:
+        - term: "src/interfaces/http/"
+          text: "server.js nhập các lớp chặn và bộ điều khiển; chiều ngược lại là chúng nhập respond.js và session-cookie.js, hai tệp dùng chung nhỏ của riêng lớp này."
+        - term: "src/interfaces/web/"
+          text: "main.js nhập các phần của trang trong views/; views/ nhập format.js. Giao diện không nhập gì ngoài thư mục của nó."
+        - term: "src/interfaces/cli/commands/"
+          text: "Mỗi lệnh một tệp; index.js nhập chín lệnh, bsn.js nhập thêm lệnh console."
+        - term: "src/infrastructure/memory/"
+          text: "Bộ nối trong bộ nhớ; chỉ nơi lắp ráp và test nhập nó."
+        - term: "src/"
+          text: "Chính là src/composition.js."
+      pitfalls:
+        - "Hai chiều mũi tên giữa http/ và hai thư mục con của nó không phải vòng phụ thuộc giữa các tệp: thư mục con chỉ nhập respond.js và session-cookie.js, không nhập server.js."
+        - "Số dòng đếm cả chú thích."
+        - "Máy chỉ thấy lệnh nhập viết rõ trong mã; lời gọi HTTP và tiến trình con không có trên hình."
+      basis: "e2271f1905015b47"

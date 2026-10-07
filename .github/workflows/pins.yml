@@ -1,0 +1,46 @@
+# Cho biết commit đang được ghim trong services/ đã có bản đóng gói trên Docker Hub chưa (S-019, S-023, S-029).
+# Khai báo đi TRƯỚC bản đóng gói: commit vừa khai mà chưa có bản thì hiện "CHỜ BUILD" và workflow này VẪN XANH kèm cảnh báo.
+# Bản sinh ra khi dịch vụ đẩy đúng commit đó lên main và test qua. Chạy tay với strict để đòi mọi bản phải có.
+# Chỉ đọc, không kéo bản về, không deploy.
+name: pins
+on:
+  push:
+    branches: [main]
+    paths: ['services/**', 'platform.json', 'bsn.js', 'lib.js']
+  pull_request:
+    paths: ['services/**', 'platform.json', 'bsn.js', 'lib.js']
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: Thiếu bất kỳ bản nào thì đỏ (dùng trước khi deploy)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  images:
+    runs-on: ubuntu-24.04
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Kiểm các tờ khai báo
+        run: node bsn.js check
+      # Kho công khai nên không cần đăng nhập để hỏi; đăng nhập (nếu có secret) chỉ để không dính giới hạn theo địa chỉ mạng của máy GitHub.
+      - name: Đăng nhập Docker Hub (nếu có secret)
+        if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Bản của commit được ghim đã có trên Docker Hub chưa
+        env:
+          STRICT: ${{ inputs.strict }}
+        run: |
+          if [ "$STRICT" = "true" ]; then node bsn.js images --strict; exit $?; fi
+          node bsn.js images | tee "$RUNNER_TEMP/images.txt"
+          if grep -q "CHỜ BUILD" "$RUNNER_TEMP/images.txt"; then echo "::warning::Có commit đã khai nhưng chưa có bản đóng gói (chờ build). Chưa deploy được các commit đó."; fi

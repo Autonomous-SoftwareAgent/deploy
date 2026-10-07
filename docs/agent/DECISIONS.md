@@ -1,0 +1,61 @@
+# DECISIONS: infra
+
+Chỉ thêm bản ghi mới; không sửa bản ghi cũ (đánh dấu `superseded by D-xxx`). Mẫu: ngày, trạng thái, bối cảnh, quyết định, hệ quả.
+
+Quyết định do người dùng chốt cho cả hệ nằm ở `docs/system/decisions.md` của repo harness (thư mục gốc `BSN_/`), không chép lại ở đây. Các mục liên quan tới repo này: S-017 (triển khai theo commit được ghim), S-018 (tầng dùng chung ở local, Redpanda), S-019 (GitHub và GitHub Actions), S-020 (dự án GCP), S-023 (nền dùng chung, tờ khai báo theo dịch vụ, Docker Hub công khai, hai máy), S-026 (đưa repo lên công khai, địa chỉ ẩn danh), S-028 (tách repo deploy và repo harness), S-029 (khai báo trước, build sau), S-030 (infra là một đơn vị có tài liệu như dịch vụ).
+
+Tệp này chỉ ghi quyết định kỹ thuật của riêng repo deploy mà phiên infra tự chọn khi làm.
+
+## D-001: Không dùng thư viện ngoài, không có package.json
+- Ngày: 2026-10-05. Trạng thái: accepted.
+- Bối cảnh: lệnh điều khiển phải chạy ngay trên máy làm việc và trên máy của GitHub mà không có bước cài đặt.
+- Quyết định: chỉ dùng thư viện có sẵn của Node; tờ khai báo là JSON.
+- Hệ quả: không có trình đọc YAML, không có thư viện gọi Docker; mọi việc với Docker đi qua lệnh `docker`.
+
+## D-002: Thư mục infra được nhận ra bằng vị trí của tệp mã, không bằng tên thư mục
+- Ngày: 2026-10-07. Trạng thái: accepted.
+- Bối cảnh: trên máy làm việc repo này nằm ở `BSN_/infra/`; trên máy của GitHub nó là thư mục gốc của repo với tên bất kỳ và không có repo dịch vụ nào bên cạnh (S-028).
+- Quyết định: `lib.js` coi thư mục chứa nó là thư mục infra khi `root` đúng là thư mục cha của nó; với `root` khác (workspace giả của test) thì là `<root>/infra`. `check` và `images` bỏ phần kiểm repo dịch vụ khi máy không có repo dịch vụ nào, và nói rõ đã bỏ.
+- Hệ quả: cách gọi `node infra/bsn.js ...` từ `BSN_/` không đổi; trong repo đứng một mình chỉ `check` và `images` chạy được.
+
+## D-003: Bước test ở lại workflow của dịch vụ, workflow dùng chung chỉ lo từ quyết định đóng gói trở đi
+- Ngày: 2026-10-06. Trạng thái: accepted.
+- Bối cảnh: mỗi dịch vụ cần ngôn ngữ và phụ thuộc chạy kèm khác nhau, và GitHub Actions không cho một workflow dùng chung dựng dịch vụ chạy kèm theo một tệp cấu hình.
+- Quyết định: dịch vụ tự viết job `test`; job `image` gọi `service-image.yml` của repo này với `needs: test`.
+- Hệ quả: nền không biết dịch vụ test bằng gì. Việc "bản chỉ sinh ra sau khi test qua" dựa vào dòng `needs: test` trong workflow của dịch vụ; nền CHƯA kiểm được dịch vụ có khai dòng đó hay không.
+
+## D-004: Quét bí mật bằng tệp tự viết, chỉ bắt các dạng có khuôn rõ
+- Ngày: 2026-10-06. Trạng thái: accepted.
+- Bối cảnh: kho Docker Hub công khai; cần chặn lỗi thường gặp trước khi đẩy mà không thêm action của bên thứ ba.
+- Quyết định: `ci/scan-image.js` bung hệ tệp của bản, bỏ qua thư mục thư viện và thư mục hệ thống của ảnh nền, tìm token có khuôn rõ, tệp `.env`, tệp khóa, thư mục `.git`, và biến ENV/ARG tên như bí mật mà mang giá trị.
+- Hệ quả: qua được bước này không chứng minh bản sạch; bí mật dạng lạ hoặc nằm trong thư mục thư viện không bị bắt. Quét lỗ hổng và ký bản chưa làm.
+
+## D-006: Sổ deploy tách khỏi tờ khai báo; deploy hỏng không sửa tờ khai báo
+- Ngày: 2026-10-07. Trạng thái: accepted.
+- Bối cảnh: tờ khai báo nói dịch vụ MUỐN chạy commit nào và do dịch vụ ghi. Khi một lần deploy hỏng và hệ tự bật lại bản cũ, thứ đang chạy khác thứ được khai. Cần một nơi ghi sự thật của đích, và cần quyết định có tự sửa tờ khai báo về bản cũ không.
+- Quyết định: mỗi đích giữ một sổ deploy riêng (`local/.run/deployments.json`, không commit): bản đang chạy, bản liền trước, 50 lần đưa lên gần nhất. Deploy hỏng KHÔNG sửa tờ khai báo; `status` báo chỗ lệch. Chỉ `rollback` (một việc người hay agent chủ động yêu cầu) mới ghi lại tờ khai báo sau khi bản lùi về đã khỏe. `rollback` chỉ nhận commit mà sổ ghi là đã từng chạy khỏe trên đích đó.
+- Hệ quả: sau một lần deploy hỏng, dịch vụ phải tự quyết: sửa và khai commit mới, hoặc rollback để tờ khai báo khớp lại. Sổ mất thì mất lịch sử và không rollback được cho tới khi có lần chạy khỏe mới (lệnh `up` cũng ghi sổ). Với máy chủ, sổ phải nằm trên máy chủ: chưa làm.
+
+## D-005: Dùng lại lớp bằng thông tin đệm ghi kèm trong bản
+- Ngày: 2026-10-07. Trạng thái: accepted.
+- Bối cảnh: máy của GitHub không giữ lớp giữa các lần chạy; lớp cài thư viện của một dịch vụ Python dựng lại lệch vài trăm byte nên bị đẩy lại nguyên 21 MB mỗi bản.
+- Quyết định: build với `BUILDKIT_INLINE_CACHE=1` và `--cache-from` bản `main-` gần nhất của chính dịch vụ đó, lấy tên bản qua API công khai của Docker Hub. Không tìm được bản trước thì build bình thường.
+- Hệ quả: không cần kho đệm riêng hay action thêm. Chỉ lớp của tầng cuối trong Dockerfile được dùng lại; bản đầu tiên sau khi bật chưa được lợi. Đã đo với một bản không đổi mã: không lớp nào phải tải lên. CHƯA đo với một commit sửa mã thật.
+
+## D-007: Repo deploy là một dịch vụ bốn lớp, có cả máy chủ web lẫn giao diện; bỏ nút bấm trên GitHub
+- Ngày: 2026-10-07. Trạng thái: accepted (người dùng duyệt thiết kế cùng ngày; mã đã chuyển xong, 86 test).
+- Bối cảnh: người dùng chốt ngày 2026-10-07: DevOps và agent deploy từ một bảng điều khiển web của chính repo này, không để nút deploy lộ trên GitHub Actions của một repo công khai; repo vẫn là một repo; mã phải quy hoạch theo mẫu thiết kế và SOLID, thuần Node.js, phần máy chủ và phần giao diện nằm chung một dịch vụ. Bản thử bảng điều khiển viết cùng ngày chạy được nhưng gộp nhiều việc vào một tệp và chép lại quy tắc deploy trong "đích giả".
+- Quyết định: chia mã thành `src/domain`, `src/application`, `src/infrastructure`, `src/interfaces` (cli, http, web) với một nơi lắp ráp duy nhất; phụ thuộc một chiều do test giữ; mọi thứ ra ngoài đi qua cổng có bộ nối thật và bộ nối trong bộ nhớ, cùng qua một bộ test hợp đồng. Chi tiết: `ARCHITECTURE.md`. Hai workflow `deploy.yml` và `rollback.yml` bị xóa; không cài runner tự chạy.
+- Hệ quả: thay cho phần "nút Deploy, Rollback trên GitHub" của S-023 mục 8 (cần ghi mục mới ở `docs/system/decisions.md` của repo harness). `lib.js`, `deploy.js` và thư mục `console/` của bản thử sẽ bị thay thế. Tên lệnh, đầu ra JSON, khuôn tờ khai báo và workflow dùng chung không đổi, nên dịch vụ không phải sửa gì. D-001 (không thư viện ngoài) giữ nguyên. Khác với bản thiết kế lúc duyệt: `ci/prune-images.js` được nhập `src/` (nó chạy trong repo đầy đủ), chỉ `decide.js` và `scan-image.js` phải đứng một mình; thêm cổng `Hasher` và `ConfigFiles`; lời diễn giải tiếng Việt của một lần đưa lên nằm trong ca sử dụng (qua hàm `say` được đưa vào) chứ không tách sang lớp trình bày.
+
+## D-008: Mỗi việc của bảng điều khiển chạy trong một tiến trình con tách rời
+- Ngày: 2026-10-07. Trạng thái: accepted.
+- Bối cảnh: lệnh docker chạy đồng bộ và có thể mất hàng phút; và bảng điều khiển có thể bị tắt giữa lúc một lần đưa lên đang chạy. Thử thật: giết bảng điều khiển giữa lúc rollback thì tiến trình con chết theo (trên Windows Node tự giết tiến trình con khi tiến trình cha chết), container đã đổi mà sổ và tờ khai báo chưa ghi.
+- Quyết định: cổng `JobExecutor` có bộ nối chạy đúng lệnh điều khiển (`deploy|rollback --apply --json`) trong một tiến trình con với cờ `detached`; lệnh điều khiển bỏ qua lỗi "bên đọc đầu ra đã biến mất". Chế độ bộ nhớ dùng bộ nối gọi thẳng ca sử dụng.
+- Hệ quả: máy chủ web không đứng trong lúc kéo bản; bảng điều khiển chết thì việc vẫn xong và khóa của dịch vụ được nhả, nhưng kết quả của việc đó không còn hiện trên trang (sổ deploy vẫn ghi). `test/job-executor.test.js` đỏ khi bỏ cờ. Trên Linux cờ này còn giữ cho phím Ctrl+C ở cửa sổ của bảng điều khiển không tới tiến trình con.
+
+## D-009: Đích từ xa: máy đích tự chạy lệnh điều khiển, bảng điều khiển chỉ ra lệnh qua SSH
+- Ngày: 2026-10-07. Trạng thái: accepted.
+- Bối cảnh: người dùng muốn bảng điều khiển chỉ chạy ở máy làm việc nhưng deploy, rollback thật trên một máy GCP. Có hai hướng: (a) viết bộ nối `Runtime`, `Ledger`, `Locks` gọi docker và đọc tệp từ xa; (b) để máy đích chạy đúng lệnh điều khiển đã có và chỉ chuyển lệnh, kết quả qua SSH.
+- Quyết định: chọn (b). Thêm cổng `RemoteShell` (`exec(script)`), bộ nối `gcloud-ssh-shell.js`, và hai tệp ở lớp application dựng trên cổng đó: `remote-target.js` (đọc trạng thái và bản trên kho từ đầu ra `--json`) và `remote-jobs.js` (cổng `JobExecutor`: bắt đầu việc tách rời khỏi phiên SSH rồi hỏi lại). Tờ khai đích ở `targets/<tên>.json`, không vào git. Bộ nối hỏi `gcloud` một lần để biết địa chỉ rồi gọi thẳng `ssh`, đoạn lệnh đi qua đầu vào chuẩn; khóa máy chủ ghi theo tên máy.
+- Hệ quả: luật deploy, sổ, khóa và bí mật nằm ở đúng nơi hệ chạy; không có luật nào viết lại; hợp đồng giữa hai máy là đầu ra `--json`, nên nó chỉ được đổi theo kiểu thêm vào và hai máy nên chạy cùng phiên bản. Đánh đổi: mỗi lần đọc trạng thái là một lần SSH (khoảng 1,3 giây; gọi `gcloud` mỗi lần thì 21 tới 32 giây, đã đo); máy đích phải có Node và bản cài của repo này. Trên Windows cần `BSN_SSH` hoặc siết quyền tệp khóa. Hướng (a) vẫn mở cho đích không cài được lệnh điều khiển.
