@@ -14,12 +14,14 @@ function makeGetStatus({ source, runtime, ledger, serviceLock }) {
     const book = await ledger.read();
     const services = [];
     for (const [name, svc] of Object.entries(manifest.services)) {
-      const head = await source.head(svc.repo);
+      // Máy vừa được chuẩn bị chưa có repo của dịch vụ nào: vẫn phải báo được "chưa deploy gì" thay vì hỏng.
+      const hasRepo = await source.has(svc.repo);
+      const head = hasRepo ? await source.head(svc.repo) : null;
       const live = running ? running.get(containerName(name)) || null : null;
       const entry = ledgerOf.of(book, name);
       services.push({
         service: name, pinned: svc.commit || null, head, pinnedIsHead: !!svc.commit && svc.commit === head,
-        uncommittedFiles: await source.dirtyCount(svc.repo),
+        uncommittedFiles: hasRepo ? await source.dirtyCount(svc.repo) : 0,
         imageBuilt: svc.commit && running ? await runtime.hasImage(localImage(name, svc.commit)) : null,
         running: !!live, runningCommit: live ? live.commit || null : null,
         runningMatchesPin: live ? !!svc.commit && live.commit === svc.commit : null,

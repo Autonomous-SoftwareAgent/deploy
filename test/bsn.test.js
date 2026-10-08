@@ -269,9 +269,13 @@ test('check trên máy không có repo của dịch vụ (máy của GitHub): v�
   assert.equal(await main(['check', '--json'], { root: w.root, run: fakeRun().run, log: logTo(out) }), 0);
   assert.deepEqual(JSON.parse(out.join('')), { ok: true, errors: [], reposChecked: false, services: ['shop'] });
   // Lệnh cần mã của dịch vụ thì vẫn từ chối khi thiếu repo.
+  const bu = [];
+  assert.equal(await main(['build'], { root: w.root, run: fakeRun().run, log: logTo(bu) }), 1);
+  assert.match(bu.join('\n'), /không thấy repo git/);
+  // Xem trạng thái thì vẫn được trên máy chỉ có repo deploy (máy vừa được chuẩn bị để nhận lệnh): chưa có gì chạy.
   const st = [];
-  assert.equal(await main(['status'], { root: w.root, run: fakeRun().run, log: logTo(st) }), 1);
-  assert.match(st.join('\n'), /không thấy repo git/);
+  assert.equal(await main(['status', '--json'], { root: w.root, run: fakeRun().run, log: logTo(st) }), 0);
+  assert.deepEqual(JSON.parse(st.join('')).services.map((x) => [x.service, x.head, x.running, x.uncommittedFiles]), [['shop', null, false, 0]]);
 });
 
 test('platform.json sai bị check báo: thiếu tài khoản Docker Hub, nhánh khác main', async (t) => {

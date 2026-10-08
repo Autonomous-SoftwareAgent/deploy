@@ -26,6 +26,8 @@ function makeConsoleCommand({ open }) {
         try { const r = await board.importRecords(); if (r.imported && (r.versions || r.auditEntries || r.members)) say(`Đã chép dữ liệu cũ vào DB của bảng điều khiển: ${r.versions} phiên bản cấu hình, ${r.auditEntries} dòng sổ thao tác, ${r.members} người dùng.`); }
         catch (e) { say(`Không chép được dữ liệu cũ vào DB: ${e.message}`); return 1; }
       }
+      // Nối lại các môi trường đã thêm từ trang ở những lần chạy trước.
+      if (board.restore) { try { await board.restore(); } catch (e) { say(`Không nối lại được các môi trường đã thêm: ${e.message}`); } }
       try { await board.server.listen(); } catch (e) { say(`Không mở được cổng ${port}: ${e.message}`); return 1; }
       say(`Bảng điều khiển${memory ? ' (TRONG BỘ NHỚ, không đụng hệ nào)' : ''}: http://127.0.0.1:${port}  (chỉ máy này vào được; Ctrl+C để tắt, tắt không ảnh hưởng dịch vụ đang chạy)`);
       say(`Đích: ${board.describe || 'chính máy này'}`);

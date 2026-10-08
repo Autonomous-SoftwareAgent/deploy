@@ -99,6 +99,14 @@
  * @property {(target: object) => Promise<void>} put
  * @property {(name: string) => Promise<boolean>} remove
  *
+ * @typedef {object} Cloud  Tạo và xóa máy trên cloud. Không ném lỗi: hỏng thì ok là false kèm lời giải thích.
+ * @property {(req: {configuration?: string, name: string, zone: string, machineType: string, labels?: object}) => Promise<{ok: boolean, error?: string}>} createInstance
+ * @property {(req: {configuration?: string, name: string, zone: string}) => Promise<{ok: boolean, error?: string}>} deleteInstance  xóa cả đĩa; máy không còn thì coi như xong
+ * @property {(req: {configuration?: string, name: string, zone: string}) => Promise<boolean|null>} instanceExists
+ *
+ * @typedef {object} SetupScript  Đoạn lệnh chuẩn bị một máy mới để nhận lệnh điều khiển.
+ * @property {() => string} read
+ *
  * @typedef {object} Meta  Dấu của những việc chỉ làm một lần.
  * @property {(key: string) => Promise<string|null>} get
  * @property {(key: string, value: string) => Promise<void>} set
@@ -140,6 +148,8 @@ const PORTS = Object.freeze({
   runStore: ['put', 'recent'],
   targetStore: ['list', 'put', 'remove'],
   meta: ['get', 'set'],
+  cloud: ['createInstance', 'deleteInstance', 'instanceExists'],
+  setupScript: ['read'],
   random: ['bytes'],
   hasher: ['slowHash', 'fastHash', 'equal'],
   jobExecutor: ['run'],

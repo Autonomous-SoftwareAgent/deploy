@@ -45,7 +45,8 @@ const RULES = {
   'interfaces/cli': { layers: ['domain', 'application', 'interfaces/cli'], node: SIDE_EFFECT_FREE },
   'interfaces/http': { layers: ['domain', 'application', 'interfaces/http'], node: ['node:http', 'node:fs', 'node:path'] },
   'interfaces/web': { layers: ['interfaces/web'], node: [] },
-  composition: { layers: ['domain', 'application', 'infrastructure', 'interfaces/cli', 'interfaces/http'], node: '*' },
+  // Lớp lắp ráp gồm composition.js (cửa vào) và các tệp trong composition/; chúng nhập lẫn nhau được.
+  composition: { layers: ['domain', 'application', 'infrastructure', 'interfaces/cli', 'interfaces/http', 'composition'], node: '*' },
 };
 
 test('mỗi lớp chỉ nhập lớp được phép; application và domain không đụng tệp, tiến trình hay mạng', () => {

@@ -18,6 +18,8 @@ function ledgerLine(s) {
 
 module.exports = {
   name: 'status',
+  // Máy chỉ có repo deploy (máy vừa chuẩn bị, chưa nhận dịch vụ nào) vẫn xem được trạng thái; máy có repo dịch vụ thì đòi đủ.
+  requireRepos: 'if-present',
   usage: 'status',
   async run({ app, manifest, say, json }) {
     const status = await app.getStatus({ manifest });

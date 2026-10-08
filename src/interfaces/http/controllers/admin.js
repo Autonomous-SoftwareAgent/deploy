@@ -5,12 +5,12 @@
 const { json } = require('../respond');
 const access = require('../../../domain/access');
 
-const STATUS = { BAD_INPUT: 400, FORBIDDEN: 403, NOT_FOUND: 404, UNKNOWN_SERVICE: 404, CONFLICT: 409, BLOCKED: 422, CONFIRMATION_REQUIRED: 422, BUSY: 409, NOT_READY: 503 };
+const STATUS = { UNREACHABLE: 502, BAD_INPUT: 400, FORBIDDEN: 403, NOT_FOUND: 404, UNKNOWN_SERVICE: 404, CONFLICT: 409, BLOCKED: 422, CONFIRMATION_REQUIRED: 422, BUSY: 409, NOT_READY: 503 };
 const error = (res, details = {}) => json(STATUS[res.outcome] || 500, { error: { code: res.outcome || 'UNEXPECTED', message: res.reason || 'unexpected error', details } });
 const answer = (res, status = 200) => (res.ok ? json(status, { ...res, ok: undefined }) : error(res, res.errors ? { errors: res.errors } : res.version !== undefined ? { version: res.version } : {}));
 const actorOf = (ctx) => ({ name: ctx.who.actor, role: ctx.who.role });
 
-function adminController({ settings, auth, audit, approvals }) {
+function adminController({ settings, auth, audit, approvals, provision = null }) {
   /** Bọc một bộ xử lý: chỉ người quản trị cấu hình (Admin, DevOps) mới qua; người khác nhận 403 và sổ thao tác ghi lại. */
   const adminOnly = (action, handler) => async (ctx) => {
     if (access.canAdminister(ctx.who.role)) return handler(ctx);
@@ -26,8 +26,17 @@ function adminController({ settings, auth, audit, approvals }) {
     return res.ok ? json(200, { approval: res.approval, run: res.run || null }) : error(res, res.preflight ? { preflight: res.preflight } : {});
   };
 
+  // Thêm, gỡ môi trường (kể cả tạo và xóa máy trên cloud): chỉ có khi bảng điều khiển được lắp phần đó.
+  const environments = provision ? [
+    { method: 'GET', path: '/api/v1/environments/managed', handler: async () => json(200, await provision.list()) },
+    { method: 'GET', path: '/api/v1/environments/operations/:id', handler: async (ctx) => { const o = provision.operation(ctx.params.id); return o ? json(200, o) : error({ outcome: 'NOT_FOUND', reason: 'operation not found' }); } },
+    { method: 'POST', path: '/api/v1/environments', handler: adminOnly('environment.add', async (ctx) => answer(await provision.add({ mode: ctx.body.mode, name: ctx.body.name, machineType: ctx.body.machineType, zone: ctx.body.zone, instance: ctx.body.instance, configuration: ctx.body.configuration, confirmation: ctx.body.confirmation, actor: actorOf(ctx) }), 202)) },
+    { method: 'DELETE', path: '/api/v1/environments/:name', handler: adminOnly('environment.remove', async (ctx) => answer(await provision.remove({ name: ctx.params.name, deleteMachine: ctx.body.deleteMachine === true, confirmation: ctx.body.confirmation, actor: actorOf(ctx) }))) },
+  ] : [];
+
   return {
     routes: [
+      ...environments,
       { method: 'GET', path: '/api/v1/me', handler: me },
       { method: 'GET', path: '/api/v1/config', handler: getConfig },
       { method: 'POST', path: '/api/v1/config/preview', handler: async (ctx) => answer(await settings.preview(ctx.body.config)) },

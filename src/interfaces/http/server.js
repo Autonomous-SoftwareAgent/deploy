@@ -30,7 +30,7 @@ function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}
   const deployments = deploymentsController({ console: app.console, memory, target, guard });
   const assets = staticController({ dir: WEB_DIR });
   const many = app.fleet && app.runs ? fleetController({ fleet: app.fleet, runs: app.runs, approvals: app.approvals, memory, skippedTargets: app.skippedTargets || [] }) : null;
-  const admin = many ? adminController({ settings: app.settings, auth: app.auth, audit: app.audit, approvals: app.approvals }) : null;
+  const admin = many ? adminController({ settings: app.settings, auth: app.auth, audit: app.audit, approvals: app.approvals, provision: app.provision || null }) : null;
 
   const match = makeRouter([
     { method: 'GET', path: '/healthz', open: true, handler: () => json(200, { ok: true }) },
@@ -42,8 +42,9 @@ function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}
     { method: 'GET', path: '/api/jobs/:id', handler: deployments.job },
     { method: 'POST', path: '/api/services/:service/deploy', handler: deployments.deploy },
     { method: 'POST', path: '/api/services/:service/rollback', handler: deployments.rollback },
-    ...(many ? many.routes : []),
+    // Đường cụ thể (environments/managed) phải đứng trước đường có tham số của cùng tiền tố.
     ...(admin ? admin.routes : []),
+    ...(many ? many.routes : []),
   ]);
 
   let server = null;

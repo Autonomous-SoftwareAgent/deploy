@@ -7,6 +7,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function makeMemoryPlatform(world) {
   const runtime = {
     async list() { return new Map([...world.running].map(([n, v]) => [n, { commit: v.commit, status: v.status }])); },
+    // (cổng Runtime tiếp tục bên dưới)
     async logs(name, tail) {
       const c = world.running.get(containerName(name));
       if (!c) return null;
@@ -84,7 +85,20 @@ function makeMemoryPlatform(world) {
   // Đồng hồ tự nhích một giây mỗi lần hỏi, để thứ tự các dòng trong sổ đoán trước được.
   const clock = { now: () => new Date((world.time += 1000)).toISOString(), millis: () => world.time };
 
-  return { runtime, registry, source, sharedTier, health, clock };
+  // Máy trên cloud trong bộ nhớ. world.cloudFails: lời lỗi để thử trường hợp cloud từ chối.
+  const cloud = {
+    async createInstance({ name, zone, machineType }) {
+      if (world.cloudFails) return { ok: false, error: world.cloudFails };
+      if (world.instances.has(name)) return { ok: false, error: `instance ${name} already exists` };
+      world.instances.set(name, { zone, machineType });
+      return { ok: true };
+    },
+    async deleteInstance({ name }) { if (world.cloudFails) return { ok: false, error: world.cloudFails }; world.instances.delete(name); return { ok: true }; },
+    async instanceExists({ name }) { return world.instances.has(name); },
+  };
+  const setupScript = { read: () => 'echo "== sample setup"' };
+
+  return { cloud, setupScript, runtime, registry, source, sharedTier, health, clock };
 }
 
 module.exports = { makeMemoryPlatform };

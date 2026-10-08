@@ -52,8 +52,14 @@ else
   git clone --quiet --branch main "$DEPLOY_REPO" "$BSN_ROOT/infra"
 fi
 
-say "Repo của các dịch vụ đã khai"
-BSN_ROOT="$BSN_ROOT" bash "$BSN_ROOT/infra/server/sync.sh"
+# BSN_SKIP_SERVICE_REPOS=1: chỉ chuẩn bị máy để nhận lệnh (bảng điều khiển dùng khi tạo một môi trường mới).
+# Repo của dịch vụ lấy sau, khi cần đưa dịch vụ lên: bash infra/server/sync.sh
+if [ "${BSN_SKIP_SERVICE_REPOS:-0}" = "1" ]; then
+  say "Bỏ qua repo của các dịch vụ (BSN_SKIP_SERVICE_REPOS=1)"
+else
+  say "Repo của các dịch vụ đã khai"
+  BSN_ROOT="$BSN_ROOT" bash "$BSN_ROOT/infra/server/sync.sh"
+fi
 
 say "Phiên bản"
 docker --version
