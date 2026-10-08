@@ -7,15 +7,16 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { buildMemoryConsole } = require('../src/composition');
 const { sampleWorld, BROKEN, commit } = require('../src/infrastructure/memory/world');
+const { nodeHasher } = require('../src/infrastructure/node-hasher');
 
-async function boot(t, { delayMs = 0 } = {}) {
-  const board = buildMemoryConsole({ world: sampleWorld({ delayMs }), port: 0, imagesTtlMs: 0 });
+async function boot(t, { delayMs = 0, hasher } = {}) {
+  const board = buildMemoryConsole({ world: sampleWorld({ delayMs }), port: 0, imagesTtlMs: 0, hasher });
   await board.auth.ensure();
   const { port } = await board.server.listen();
   t.after(async () => { await board.jobs.settle(); await board.server.close(); });
   const password = /trình duyệt\): (\S+)/.exec(board.world.firstLogin)[1];
   const token = /<token>"\): (\S+)/.exec(board.world.firstLogin)[1];
-  // Gọi HTTP thô để tự đặt được header Host và Cookie.
+  // Gọi HTTP thô để tự đặt được header Host, Authorization và Origin.
   const call = (method, path, { body, headers = {}, host } = {}) => new Promise((resolve, reject) => {
     const data = body === undefined ? null : JSON.stringify(body);
     const req = http.request({ host: '127.0.0.1', port, method, path, headers: { host: host || `127.0.0.1:${port}`, ...(data ? { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) } : {}), ...headers } }, (res) => {
@@ -26,35 +27,47 @@ async function boot(t, { delayMs = 0 } = {}) {
     req.end(data || undefined);
   });
   const agent = { authorization: `Bearer ${token}` };
+  const basic = (user, pass) => ({ authorization: `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}` });
+  const admin = basic('admin', password);
   const state = async () => (await call('GET', '/api/state', { headers: agent })).body;
   const svc = async (name) => (await state()).services.find((s) => s.service === name);
   const press = (name, action, body = {}) => call('POST', `/api/services/${name}/${action}`, { body, headers: agent });
   const finish = async (id) => { await board.jobs.settle(); return (await call('GET', `/api/jobs/${id}`, { headers: agent })).body.job; };
-  return { board, world: board.world, password, token, call, agent, state, svc, press, finish };
+  return { board, world: board.world, port, password, token, call, agent, basic, admin, state, svc, press, finish };
 }
 
-test('chưa đăng nhập: trang, tệp giao diện và /healthz mở được; mọi đường /api có dữ liệu đều 401', async (t) => {
+test('chưa đăng nhập: chỉ /healthz mở; trang, tệp giao diện và mọi đường /api đều 401 kèm lời hỏi tên và mật khẩu của trình duyệt', async (t) => {
   const b = await boot(t);
   assert.equal((await b.call('GET', '/healthz')).status, 200);
-  const page = await b.call('GET', '/');
+  for (const p of ['/', '/web/main.js', '/web/styles.css', '/api/state', '/api/v1/overview']) {
+    const r = await b.call('GET', p);
+    assert.equal(r.status, 401, p);
+    assert.match(r.headers['www-authenticate'], /^Basic realm="Deploy Console"/, `${p}: trình duyệt phải được bảo hiện hộp thoại`);
+  }
+  assert.equal((await b.press('mau-tot', 'deploy')).status, 202, 'có token thì được');
+  assert.equal((await b.call('POST', '/api/services/mau-tot/deploy', { body: {} })).status, 401);
+  const wrongToken = await b.call('GET', '/api/state', { headers: { authorization: 'Bearer sai' } });
+  assert.equal(wrongToken.status, 401);
+  assert.equal(wrongToken.headers['www-authenticate'], undefined, 'agent sai token không cần lời hỏi của trình duyệt');
+});
+
+test('đã đăng nhập: trang không có mã viết trong HTML; tệp giao diện trả đúng loại', async (t) => {
+  const b = await boot(t);
+  const page = await b.call('GET', '/', { headers: b.admin });
   assert.equal(page.status, 200);
   assert.match(page.text, /Deploy Console/);
   assert.ok(!/<script(?![^>]*\bsrc=)/.test(page.text) && !/<style/.test(page.text), 'trang không có mã viết trong HTML');
   assert.equal(page.headers['content-security-policy'].includes('unsafe-inline'), false);
-  const js = await b.call('GET', '/web/main.js');
+  const js = await b.call('GET', '/web/main.js', { headers: b.admin });
   assert.equal(js.status, 200);
   assert.match(js.headers['content-type'], /javascript/);
-  assert.equal((await b.call('GET', '/web/views/overview.js')).status, 200);
-  assert.equal((await b.call('GET', '/api/state')).status, 401);
-  assert.equal((await b.press('mau-tot', 'deploy')).status, 202, 'có token thì được');
-  assert.equal((await b.call('POST', '/api/services/mau-tot/deploy', { body: {} })).status, 401);
-  assert.equal((await b.call('GET', '/api/state', { headers: { authorization: 'Bearer sai' } })).status, 401);
+  assert.equal((await b.call('GET', '/web/views/overview.js', { headers: b.admin })).status, 200);
 });
 
 test('phục vụ tệp giao diện: không ra khỏi thư mục giao diện, không phục vụ loại tệp lạ', async (t) => {
   const b = await boot(t);
   for (const p of ['/web/..%2Fserver.js', '/web/%2e%2e/%2e%2e/composition.js', '/web/../http/server.js', '/web/khong-co.js', '/web/index.htmlx', '/khac']) {
-    assert.equal((await b.call('GET', p)).status, 404, p);
+    assert.equal((await b.call('GET', p, { headers: b.admin })).status, 404, p);
   }
 });
 
@@ -68,37 +81,47 @@ test('nơi lưu chỉ giữ dạng băm; sinh lại thì mật khẩu và token 
   const b = await boot(t);
   const stored = JSON.stringify(b.world.credentials);
   assert.ok(!stored.includes(b.password) && !stored.includes(b.token), 'nơi lưu không chứa bản rõ');
+  assert.equal((await b.call('GET', '/api/state', { headers: b.admin })).status, 200);
   assert.equal((await b.board.auth.ensure()).created, false, 'lần gọi sau không sinh lại');
   await b.board.auth.ensure({ reset: true });
   assert.equal((await b.call('GET', '/api/state', { headers: b.agent })).status, 401, 'token cũ hết dùng');
+  assert.equal((await b.call('GET', '/api/state', { headers: b.admin })).status, 401, 'mật khẩu cũ hết dùng, kể cả khi đã từng qua kiểm');
 });
 
-test('đăng nhập: thiếu header riêng bị từ chối; đúng thì có phiên; đăng xuất thì phiên hết; sai 5 lần thì khóa tạm rồi mở lại', async (t) => {
-  const b = await boot(t);
-  const H = { 'x-bsn-console': '1' };
-  assert.equal((await b.call('POST', '/api/login', { body: { password: b.password } })).status, 400, 'thiếu header riêng');
-  const ok = await b.call('POST', '/api/login', { body: { password: b.password }, headers: H });
-  assert.equal(ok.status, 200);
-  const cookie = ok.headers['set-cookie'][0];
-  assert.match(cookie, /HttpOnly; SameSite=Strict/);
-  const sid = cookie.split(';')[0];
-  const st = await b.call('GET', '/api/state', { headers: { cookie: sid } });
+test('đăng nhập kiểu Basic: tên admin cùng mật khẩu thì vào; sai tên, sai mật khẩu, sai dạng thì không; lần sau không băm chậm lại', async (t) => {
+  let slowCount = 0;
+  const b = await boot(t, { hasher: { ...nodeHasher, slowHash: (p, salt) => { slowCount += 1; return nodeHasher.slowHash(p, salt); } } });
+  const st = await b.call('GET', '/api/state', { headers: b.admin });
   assert.deepEqual([st.status, st.body.actor, st.body.memory], [200, 'admin', true]);
-  assert.equal((await b.call('POST', '/api/services/mau-tot/deploy', { body: {}, headers: { cookie: sid } })).status, 400, 'phiên trình duyệt mà thiếu header riêng: coi như yêu cầu giả mạo');
-  assert.equal((await b.call('POST', '/api/logout', { headers: { cookie: sid, ...H } })).status, 200);
-  assert.equal((await b.call('GET', '/api/state', { headers: { cookie: sid } })).status, 401, 'đăng xuất thì phiên hết dùng');
-  for (let i = 0; i < 5; i++) assert.equal((await b.call('POST', '/api/login', { body: { password: 'sai' }, headers: H })).status, 401);
-  assert.equal((await b.call('POST', '/api/login', { body: { password: b.password }, headers: H })).status, 429, 'đang bị khóa tạm thì mật khẩu đúng cũng chưa vào được');
-  b.world.time += 61000;
-  assert.equal((await b.call('POST', '/api/login', { body: { password: b.password }, headers: H })).status, 200, 'hết thời gian khóa thì vào lại được');
+  assert.equal((await b.call('GET', '/api/state', { headers: b.basic('root', b.password) })).status, 401, 'tên khác admin');
+  assert.equal((await b.call('GET', '/api/state', { headers: b.basic('admin', 'sai') })).status, 401);
+  assert.equal((await b.call('GET', '/api/state', { headers: { authorization: 'Basic @@@' } })).status, 401, 'sai dạng');
+  // Mật khẩu có dấu hai chấm vẫn tách đúng: tên là phần trước dấu hai chấm ĐẦU TIÊN.
+  assert.equal((await b.call('GET', '/api/state', { headers: b.basic('admin', `${b.password}:x`) })).status, 401);
+  const slow = slowCount;
+  for (let i = 0; i < 5; i++) assert.equal((await b.call('GET', '/api/state', { headers: b.admin })).status, 200);
+  assert.equal(slowCount, slow, 'mật khẩu đã qua kiểm thì các yêu cầu sau không tốn thêm lần băm chậm nào');
 });
 
-test('phiên đăng nhập hết hạn sau 8 giờ', async (t) => {
+test('chống giả mạo: lệnh ghi của người phải có header riêng và đúng nguồn gốc; agent dùng token thì không cần', async (t) => {
   const b = await boot(t);
-  const ok = await b.call('POST', '/api/login', { body: { password: b.password }, headers: { 'x-bsn-console': '1' } });
-  const sid = ok.headers['set-cookie'][0].split(';')[0];
-  b.world.time += 8 * 3600 * 1000 + 1000;
-  assert.equal((await b.call('GET', '/api/state', { headers: { cookie: sid } })).status, 401);
+  const H = { ...b.admin, 'x-bsn-console': '1' };
+  assert.equal((await b.call('POST', '/api/services/mau-tot/deploy', { body: {}, headers: b.admin })).status, 400, 'trình duyệt tự gửi kèm mật khẩu cho cả yêu cầu do trang khác tạo: thiếu header riêng thì từ chối');
+  assert.equal((await b.call('POST', '/api/services/mau-tot/deploy', { body: {}, headers: { ...H, origin: 'http://ke-xau.example' } })).status, 403, 'nguồn gốc khác');
+  assert.equal((await b.call('POST', '/api/services/mau-tot/deploy', { body: {}, headers: { ...H, origin: `http://127.0.0.1:${b.port}` } })).status, 202);
+  assert.equal((await b.press('mau-hong', 'deploy')).status, 202, 'agent không cần header riêng');
+});
+
+test('sai mật khẩu 5 lần thì khóa tạm (429 kèm retry-after), kể cả với mật khẩu đúng; hết giờ khóa thì vào lại được', async (t) => {
+  const b = await boot(t);
+  for (let i = 0; i < 5; i++) assert.equal((await b.call('GET', '/api/state', { headers: b.basic('admin', 'sai') })).status, 401);
+  const locked = await b.call('GET', '/api/state', { headers: b.admin });
+  assert.equal(locked.status, 429);
+  assert.ok(Number(locked.headers['retry-after']) > 0);
+  assert.equal((await b.call('GET', '/healthz', { headers: b.admin })).status, 200, 'đường mở không bị khóa theo');
+  assert.equal((await b.call('GET', '/api/state', { headers: b.agent })).status, 200, 'agent dùng token không bị khóa theo');
+  b.world.time += 61000;
+  assert.equal((await b.call('GET', '/api/state', { headers: b.admin })).status, 200);
 });
 
 test('trạng thái: mỗi dịch vụ có commit đã khai, bản đang chạy, đã có bản đóng gói chưa, lịch sử; đọc trạng thái không đổi gì', async (t) => {

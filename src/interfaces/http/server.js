@@ -11,7 +11,6 @@ const { securityHeaders } = require('./middleware/security-headers');
 const { jsonBody } = require('./middleware/json-body');
 const { authenticate } = require('./middleware/authenticate');
 const { csrf } = require('./middleware/csrf');
-const { sessionController } = require('./controllers/session');
 const { deploymentsController } = require('./controllers/deployments');
 const { staticController } = require('./controllers/static');
 const { fleetController } = require('./controllers/fleet');
@@ -20,18 +19,16 @@ const WEB_DIR = path.join(__dirname, '..', 'web');
 
 /** app: { auth, console }. opts: { port, memory?, target? }. target: dòng mô tả đích từ xa (bỏ trống: đích là máy này). */
 function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}) {
-  const session = sessionController(app);
   const deployments = deploymentsController({ console: app.console, memory, target });
   const assets = staticController({ dir: WEB_DIR });
   const many = app.fleet && app.runs ? fleetController({ fleet: app.fleet, runs: app.runs, memory, skippedTargets: app.skippedTargets || [] }) : null;
 
   const match = makeRouter([
     { method: 'GET', path: '/healthz', open: true, handler: () => json(200, { ok: true }) },
-    { method: 'GET', path: '/', open: true, handler: assets.index },
-    { method: 'GET', path: '/favicon.ico', open: true, handler: () => ({ status: 204, headers: {}, body: '' }) },
-    { method: 'GET', path: '/web/*', open: true, handler: assets.asset },
-    { method: 'POST', path: '/api/login', open: true, handler: session.login },
-    { method: 'POST', path: '/api/logout', handler: session.logout },
+    // Chỉ /healthz mở. Trang và tệp giao diện cũng phải đăng nhập: trình duyệt hỏi tên và mật khẩu ngay khi mở trang.
+    { method: 'GET', path: '/', handler: assets.index },
+    { method: 'GET', path: '/favicon.ico', handler: () => ({ status: 204, headers: {}, body: '' }) },
+    { method: 'GET', path: '/web/*', handler: assets.asset },
     { method: 'GET', path: '/api/state', handler: deployments.state },
     { method: 'GET', path: '/api/jobs/:id', handler: deployments.job },
     { method: 'POST', path: '/api/services/:service/deploy', handler: deployments.deploy },

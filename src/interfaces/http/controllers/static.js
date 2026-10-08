@@ -1,6 +1,5 @@
 'use strict';
-// Phục vụ giao diện (thư mục interfaces/web): chỉ các loại tệp đã khai, chỉ trong đúng thư mục đó. Giao diện không chứa dữ liệu,
-// nên mở được khi chưa đăng nhập; dữ liệu chỉ đến qua /api sau khi đăng nhập.
+// Phục vụ giao diện (thư mục interfaces/web): chỉ các loại tệp đã khai, chỉ trong đúng thư mục đó.
 const fs = require('node:fs');
 const path = require('node:path');
 const { raw, fail } = require('../respond');

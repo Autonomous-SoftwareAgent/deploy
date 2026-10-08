@@ -19,10 +19,10 @@ export const T = {
   nav: {
     label: 'Main navigation', overview: 'System overview', lastRun: 'Last viewed run', running: 'Running', configuration: 'Configuration',
     run: (r) => `${T.kind[r.kind] || r.kind} ${what(r.items.length, r.items[0].serviceId)} · ${r.environment.name}`,
-    signedIn: (who) => `Signed in as ${who}`, signOut: 'Sign out',
+    signedIn: (who) => `Signed in as ${who}`, signOutHint: 'To sign out, close the browser.',
   },
   login: {
-    title: 'Sign in to the console', password: 'Admin password', submit: 'Sign in', wrong: 'Wrong password.', locked: 'Too many failed attempts. Wait a minute and try again.',
+    title: 'Sign-in required', denied: 'The browser asks for a user name and password when the page opens. The user name is admin.', retry: 'Try again',
     hint: 'The password is generated the first time the console starts and is written to console.first-login.txt on this machine.',
   },
 

@@ -1,10 +1,8 @@
 // Trạng thái của trang và mọi thao tác đổi nó. Màn hình chỉ đọc `state` và gọi `actions`; không màn nào tự gọi máy chủ.
 import { api, errorOf } from './api.js';
-import { T } from './text.js';
 
 export const state = {
-  view: 'loading', // loading | login | overview | service | run
-  loginError: '',
+  view: 'loading', // loading | denied | overview | service | run
   filters: { projectId: 'all', environmentId: 'all', status: 'all', q: '' },
   overview: null, // câu trả lời của GET /api/v1/overview
   error: '', // lỗi của lần đọc gần nhất
@@ -31,18 +29,18 @@ const selectedIds = () => Object.keys(state.selected).filter((k) => state.select
 
 async function loadOverview() {
   const r = await api.overview(state.filters);
-  if (r.status === 401) { state.view = 'login'; return paint(); }
+  if (r.status === 401) { state.view = 'denied'; return paint(); }
   if (r.status !== 200) { state.error = errorOf(r); return paint(); }
   state.error = '';
   state.overview = r.body;
-  if (state.view === 'loading' || state.view === 'login') state.view = 'overview';
+  if (state.view === 'loading' || state.view === 'denied') state.view = 'overview';
   paint();
 }
 
 async function loadService() {
   if (!state.serviceId) return;
   const r = await api.service(state.serviceId);
-  if (r.status === 401) { state.view = 'login'; return paint(); }
+  if (r.status === 401) { state.view = 'denied'; return paint(); }
   if (r.status !== 200) { state.error = errorOf(r); return paint(); }
   state.error = '';
   state.service = r.body;
@@ -78,13 +76,6 @@ async function preflight() {
 
 export const actions = {
   async boot() { paint(true); await loadOverview(); await loadActiveRuns(); },
-  async login(password) {
-    const r = await api.login(password);
-    if (r.status !== 200) { state.loginError = r.status === 429 ? T.login.locked : T.login.wrong; return paint(true); }
-    state.loginError = ''; state.view = 'loading'; paint();
-    await actions.boot();
-  },
-  async logout() { await api.logout(); state.view = 'login'; state.overview = null; paint(); },
   goOverview() { state.view = 'overview'; state.serviceId = null; state.service = null; paint(); loadOverview(); },
   setFilter(patch) { Object.assign(state.filters, patch); paint(); loadOverview(); },
   toggleGroup(id) { state.collapsed[id] = !state.collapsed[id]; paint(); },
@@ -125,7 +116,7 @@ export const actions = {
     if (n % 5 === 0) {
       if (state.view === 'overview' && !state.dialog) loadOverview();
       if (state.view === 'service' && !state.dialog) loadService();
-      if (state.view !== 'login' && state.view !== 'loading') loadActiveRuns();
+      if (state.view !== 'denied' && state.view !== 'loading') loadActiveRuns();
     }
   },
 };

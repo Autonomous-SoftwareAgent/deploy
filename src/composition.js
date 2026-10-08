@@ -148,7 +148,7 @@ function buildLocalConsole({ root, entry, port, sshBin }) {
 }
 
 /** Bảng điều khiển chạy hoàn toàn trong bộ nhớ: cùng các ca sử dụng, không đụng hệ nào. Cho test và phát triển giao diện. */
-function buildMemoryConsole({ world = sampleWorld({ delayMs: 2500 }), port, imagesTtlMs } = {}) {
+function buildMemoryConsole({ world = sampleWorld({ delayMs: 2500 }), port, imagesTtlMs, hasher } = {}) {
   const ports = memoryPorts(world);
   const app = assemble(ports);
   const board = assembleConsole(app, {
@@ -156,6 +156,7 @@ function buildMemoryConsole({ world = sampleWorld({ delayMs: 2500 }), port, imag
     jobExecutor: makeDirectJobExecutor({ use: { loadManifest: () => ports.declarations.load(), deploy: app.deploy, rollback: app.rollback }, seconds: 2 }),
     clock: ports.clock,
     imagesTtlMs,
+    ...(hasher ? { hasher } : {}),
   });
   // Hai môi trường mẫu, mỗi cái một "thế giới" riêng, để giao diện có nhiều cột mà không đụng hệ nào.
   const second = memoryPorts(sampleWorld({ delayMs: world.delayMs }));

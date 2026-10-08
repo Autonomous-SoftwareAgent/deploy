@@ -2,7 +2,7 @@
 import { mount, h } from './dom.js';
 import { T } from './text.js';
 import { state, actions, onRender } from './store.js';
-import { sideView, loginView } from './views/shell.js';
+import { sideView, deniedView } from './views/shell.js';
 import { overviewView } from './views/overview.js';
 import { serviceView } from './views/service.js';
 import { dialogView } from './views/dialog.js';
@@ -12,7 +12,7 @@ const side = document.getElementById('side');
 const main = document.getElementById('main');
 const overlay = document.getElementById('overlay');
 
-const VIEWS = { login: loginView, overview: overviewView, service: serviceView, run: runView, loading: () => h('div', { class: 'empty' }, T.loading) };
+const VIEWS = { denied: deniedView, overview: overviewView, service: serviceView, run: runView, loading: () => h('div', { class: 'empty' }, T.loading) };
 
 onRender(() => {
   mount(side, sideView(state, actions));

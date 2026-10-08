@@ -24,8 +24,6 @@ const query = (params) => {
 export const errorOf = (r) => (r.body && r.body.error && (r.body.error.message || r.body.error)) || T.api.status(r.status);
 
 export const api = {
-  login: (password) => call('POST', '/api/login', { password }),
-  logout: () => call('POST', '/api/logout', {}),
   overview: (filters) => call('GET', `/api/v1/overview${query(filters)}`),
   service: (id) => call('GET', `/api/v1/services/${encodeURIComponent(id)}`),
   preflight: (req) => call('POST', '/api/v1/deployments/preflight', req),
