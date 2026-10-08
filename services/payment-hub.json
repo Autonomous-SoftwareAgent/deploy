@@ -1,6 +1,6 @@
 {
   "repo": "system_service/payment-hub",
-  "commit": "d942b02259e54b88fab4ec5ef2df259f78fbea10",
+  "commit": "dd90147e95c35b2b1c7a02fa1369c04c621c17b6",
   "build": {
     "target": "hub"
   },
