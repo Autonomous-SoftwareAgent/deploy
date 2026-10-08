@@ -45,7 +45,7 @@ Mỗi đợt xong thì cập nhật ô dưới đây, README và STATUS.
 ## Đã kiểm ngày 2026-10-08
 - 130 test qua (`node --test infra/test/*.test.js infra/ci/test/*.test.js`).
 - Edge chạy ngầm ở chế độ `--memory`: đi hết Tổng quan, chi tiết dịch vụ (cả Logs), hộp thoại, tiến trình, sáu mục cấu hình, tạo người dùng, lưu cấu hình, gõ tên xác nhận, xin duyệt; không lỗi JavaScript.
-- Hệ thật ở máy làm việc qua bảng điều khiển cổng 8901 (đường `/api/v1`, token của agent): deploy payment-hub sang commit cũ hơn đã có bản (12 giây), deploy lại (12 giây), rollback (8 giây), deploy lại (11 giây), lần nào cũng đủ bốn bước; log runtime của ingest đọc được; biến môi trường không lộ giá trị bí mật.
+- Hệ thật ở máy làm việc qua bảng điều khiển (lúc thử chạy ở cổng 8901; từ cuối ngày chỉ còn một bảng điều khiển, ở cổng 8900) (đường `/api/v1`, token của agent): deploy payment-hub sang commit cũ hơn đã có bản (12 giây), deploy lại (12 giây), rollback (8 giây), deploy lại (11 giây), lần nào cũng đủ bốn bước; log runtime của ingest đọc được; biến môi trường không lộ giá trị bí mật.
 - CHƯA kiểm: người thật bấm trên trình duyệt với hệ thật; phân quyền, duyệt và giờ khóa với hệ thật (mới có test và trình duyệt với dữ liệu mẫu); đích từ xa `gcp-thu` với bản lệnh mới (máy đó còn giữ bản cũ: chỉ xem được, chưa nhận `deploy <dịch-vụ> <commit>`); log của đích từ xa.
 
 ## Điều chưa có nguồn, phải nói thật trên trang và trong tài liệu
