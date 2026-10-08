@@ -93,6 +93,7 @@ export const T = {
     done: 'Completed', doneText: (n, env) => `${plural(n, 'service')} now running the new version on ${env}.`,
     failed: (n) => `${plural(n, 'service')} failed`, failedText: 'The new version was unhealthy and restoring the previous one also failed (or the command failed before changing anything). Check the log and the state of the environment.',
     reverted: (n) => `${plural(n, 'service')} restored to the previous version`, revertedText: (n) => `The new version was unhealthy, so the previously running one was restored. ${plural(n, 'other service')} succeeded.`,
+    interrupted: 'Tracking was interrupted', interruptedText: 'The console restarted while this run was in progress. The command itself kept running to the end on the environment: check the environment state and its deploy ledger for the outcome.',
     log: 'Run log', live: 'running', stopped: 'stopped', noLog: 'No log line yet.',
   },
 

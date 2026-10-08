@@ -1,7 +1,8 @@
 'use strict';
 // Ca sử dụng ĐĂNG NHẬP vào bảng điều khiển: tên `admin` cùng một mật khẩu quản trị cho người (trình duyệt hỏi bằng hộp thoại
 // của nó và gửi kèm mọi yêu cầu, HTTP Basic), một token cho agent. Không có phiên, không có cookie.
-// Ngoài admin còn có người dùng do admin tạo, mỗi người một vai trò (quyền theo vai trò: domain/access.js).
+// Ngoài admin còn có người dùng do admin tạo, mỗi người một vai trò (quyền theo vai trò: domain/access.js); họ nằm ở cổng Members.
+// Mật khẩu quản trị và token của agent ở cổng Credentials (một tệp riêng), để DB hỏng thì admin vẫn vào được.
 // Nơi lưu chỉ giữ dạng băm; bản rõ được công bố MỘT lần lúc sinh. Sai mật khẩu nhiều lần thì khóa tạm.
 const { ROLES, ADMIN_ROLE } = require('../domain/access');
 
@@ -16,9 +17,9 @@ const LOCKOUT_MS = 60000;
 const MAX_PASSWORD = 200;
 
 /**
- * @param {{credentials: import('./ports').Credentials, hasher: import('./ports').Hasher, random: import('./ports').Random, clock: import('./ports').Clock}} ports
+ * @param {{credentials: import('./ports').Credentials, members: import('./ports').Members, hasher: import('./ports').Hasher, random: import('./ports').Random, clock: import('./ports').Clock}} ports
  */
-function makeAuth({ credentials, hasher, random, clock }) {
+function makeAuth({ credentials, members, hasher, random, clock }) {
   const verified = new Map(); // tên -> dấu của mật khẩu đã qua phép băm chậm; chỉ nằm trong bộ nhớ
   const fails = { count: 0, until: 0 };
   let record = null;
@@ -37,8 +38,8 @@ function makeAuth({ credentials, hasher, random, clock }) {
     const password = random.bytes(15).toString('base64url');
     const token = 'bsn_' + random.bytes(30).toString('base64url');
     const salt = random.bytes(16).toString('hex');
-    // Sinh lại chỉ đổi mật khẩu quản trị và token; người dùng đã tạo được giữ nguyên.
-    record = { schema: SCHEMA, password: { salt, hash: hasher.slowHash(password, salt) }, tokenSha256: hasher.fastHash(token), users: (old && old.users) || [] };
+    // Sinh lại chỉ đổi mật khẩu quản trị và token; người dùng đã tạo nằm ở cổng Members và được giữ nguyên.
+    record = { schema: SCHEMA, password: { salt, hash: hasher.slowHash(password, salt) }, tokenSha256: hasher.fastHash(token) };
     await credentials.save(record);
     verified.delete(ADMIN);
     const where = await credentials.publishFirstLogin([
@@ -63,7 +64,7 @@ function makeAuth({ credentials, hasher, random, clock }) {
     const now = clock.millis();
     if (fails.until > now) return { ok: false, code: 'LOCKED_OUT', retrySeconds: Math.ceil((fails.until - now) / 1000) };
     const rec = record || (await load());
-    const found = !rec ? null : user === ADMIN ? { name: ADMIN, role: ADMIN_ROLE, ...rec.password } : (rec.users || []).find((u) => u.name === user) || null;
+    const found = !rec ? null : user === ADMIN ? { name: ADMIN, role: ADMIN_ROLE, ...rec.password } : typeof user === 'string' && NAME_RE.test(user) ? await members.get(user) : null;
     const sane = !!found && typeof password === 'string' && password.length <= MAX_PASSWORD;
     const mark = sane ? hasher.fastHash(`${found.salt}\n${password}`) : null;
     let good = sane && verified.has(found.name) && hasher.equal(mark, verified.get(found.name));
@@ -83,56 +84,45 @@ function makeAuth({ credentials, hasher, random, clock }) {
   }
 
   const refuse = (outcome, reason) => ({ ok: false, outcome, reason });
-  const publicUser = (u) => ({ name: u.name, role: u.role, createdAt: u.createdAt || null });
   const fresh = () => { const password = random.bytes(15).toString('base64url'); const salt = random.bytes(16).toString('hex'); return { password, salt, hash: hasher.slowHash(password, salt) }; };
-
-  async function change(fn) {
-    const rec = record || (await load());
-    if (!rec) return refuse('NOT_READY', 'the console has no credentials yet');
-    const users = [...(rec.users || [])];
-    const res = fn(users);
-    if (!res.ok) return res;
-    record = { ...rec, users };
-    await credentials.save(record);
-    return res;
-  }
+  const assignable = (role) => ROLES.includes(role) && role !== 'Agent';
 
   /** Người dùng ngoài admin: tên và vai trò (không bao giờ trả băm). */
-  async function users() { const rec = record || (await load()); return ((rec && rec.users) || []).map(publicUser); }
+  async function users() { return (await members.list()).map((u) => ({ name: u.name, role: u.role, createdAt: u.createdAt || null })); }
 
   /** Tạo người dùng. Mật khẩu sinh ngẫu nhiên, trả về ĐÚNG MỘT lần trong kết quả; nơi lưu chỉ giữ dạng băm. */
-  const addUser = ({ name, role }) => change((list) => {
+  async function addUser({ name, role }) {
     if (typeof name !== 'string' || !NAME_RE.test(name) || RESERVED.includes(name)) return refuse('BAD_INPUT', 'user name: 2 to 31 lowercase letters, digits, dash or underscore, starting with a letter; admin and agent are reserved');
-    if (!ROLES.includes(role) || role === 'Agent') return refuse('BAD_INPUT', `role must be one of: ${ROLES.filter((r) => r !== 'Agent').join(', ')}`);
-    if (list.some((u) => u.name === name)) return refuse('CONFLICT', `user ${name} already exists`);
+    if (!assignable(role)) return refuse('BAD_INPUT', `role must be one of: ${ROLES.filter(assignable).join(', ')}`);
+    if (await members.get(name)) return refuse('CONFLICT', `user ${name} already exists`);
     const f = fresh();
-    list.push({ name, role, salt: f.salt, hash: f.hash, createdAt: clock.now() });
+    await members.put({ name, role, salt: f.salt, hash: f.hash, createdAt: clock.now() });
     return { ok: true, user: { name, role }, password: f.password };
-  });
+  }
 
-  const setRole = (name, role) => change((list) => {
-    const u = list.find((x) => x.name === name);
+  async function setRole(name, role) {
+    const u = await members.get(name);
     if (!u) return refuse('NOT_FOUND', `no user ${name}`);
-    if (!ROLES.includes(role) || role === 'Agent') return refuse('BAD_INPUT', 'unknown role');
-    list[list.indexOf(u)] = { ...u, role };
+    if (!assignable(role)) return refuse('BAD_INPUT', 'unknown role');
+    await members.put({ ...u, role });
     return { ok: true, user: { name, role } };
-  });
+  }
 
-  const removeUser = (name) => change((list) => {
-    const i = list.findIndex((x) => x.name === name);
-    if (i < 0) return refuse('NOT_FOUND', `no user ${name}`);
-    list.splice(i, 1); verified.delete(name);
+  async function removeUser(name) {
+    if (!(await members.remove(name))) return refuse('NOT_FOUND', `no user ${name}`);
+    verified.delete(name);
     return { ok: true };
-  });
+  }
 
   /** Sinh lại mật khẩu của một người dùng; mật khẩu cũ hết dùng ngay. */
-  const resetPassword = (name) => change((list) => {
-    const u = list.find((x) => x.name === name);
+  async function resetPassword(name) {
+    const u = await members.get(name);
     if (!u) return refuse('NOT_FOUND', `no user ${name}`);
     const f = fresh();
-    list[list.indexOf(u)] = { ...u, salt: f.salt, hash: f.hash }; verified.delete(name);
+    await members.put({ ...u, salt: f.salt, hash: f.hash });
+    verified.delete(name);
     return { ok: true, user: { name, role: u.role }, password: f.password };
-  });
+  }
 
   return { ensure, basic, identify, users, addUser, setRole, removeUser, resetPassword };
 }

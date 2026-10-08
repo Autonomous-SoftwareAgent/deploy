@@ -13,7 +13,7 @@ function makeAudit({ auditLog, clock }) {
       catch { dropped += 1; }
     },
     /** Mới trước. dropped: số dòng không ghi được từ lúc bảng điều khiển khởi động. */
-    async list(limit = 200) { return { items: await auditLog.list(Math.max(1, Math.min(1000, Number(limit) || 200))), dropped }; },
+    async list(limit = 200, filter = {}) { return { items: await auditLog.list(Math.max(1, Math.min(1000, Number(limit) || 200)), filter), dropped }; },
   };
 }
 

@@ -28,11 +28,11 @@ function fleetController({ fleet, runs, approvals, memory = false, skippedTarget
     if (!res.ok) return error(res, res.preflight ? { preflight: res.preflight } : {});
     return res.run ? json(201, { runId: res.run.id, run: res.run }) : json(202, { approvalId: res.approval.id, approval: res.approval });
   };
-  const list = async (ctx) => json(200, { items: runs.list({ activeOnly: text(ctx.query, 'status') === 'active' }) });
-  const one = async (ctx) => { const r = runs.get(ctx.params.id); return r ? json(200, r) : json(404, { error: { code: 'NOT_FOUND', message: 'run not found (the console only remembers runs since it started)' } }); };
+  const list = async (ctx) => json(200, { items: await runs.list({ activeOnly: text(ctx.query, 'status') === 'active' }) });
+  const one = async (ctx) => { const r = await runs.get(ctx.params.id); return r ? json(200, r) : json(404, { error: { code: 'NOT_FOUND', message: 'run not found' } }); };
   const logs = async (ctx) => {
     const after = Number(text(ctx.query, 'after') || 0);
-    const lines = runs.logs(ctx.params.id, Number.isFinite(after) && after > 0 ? after : 0);
+    const lines = await runs.logs(ctx.params.id, Number.isFinite(after) && after > 0 ? after : 0);
     return lines ? json(200, { items: lines }) : json(404, { error: { code: 'NOT_FOUND', message: 'run not found' } });
   };
   // Một lần chuyển bản đã bắt đầu thì không cắt ngang an toàn được (container đã đổi, sổ chưa ghi): nói thật thay vì giả vờ hủy.

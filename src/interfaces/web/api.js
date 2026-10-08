@@ -47,5 +47,5 @@ export const api = {
   userPassword: (name) => call('POST', `/api/v1/users/${encodeURIComponent(name)}/password`, {}),
   approvals: () => call('GET', '/api/v1/approvals'),
   approvalDecide: (id, approve) => call('POST', `/api/v1/approvals/${encodeURIComponent(id)}/${approve ? 'approve' : 'reject'}`, {}),
-  audit: () => call('GET', '/api/v1/audit?limit=200'),
+  audit: (filter) => call('GET', `/api/v1/audit${query({ limit: 200, ...filter })}`),
 };

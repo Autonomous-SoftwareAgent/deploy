@@ -13,6 +13,7 @@ function result(r) {
   if (r.status === 'running') return null;
   const n = (s) => r.items.filter((i) => i.status === s).length;
   const [cls, title, text] = r.status === 'succeeded' ? ['info', R.done, R.doneText(n('succeeded'), r.environment.name)]
+    : r.status === 'interrupted' ? ['warn', R.interrupted, R.interruptedText]
     : r.status === 'failed' ? ['bad', R.failed(n('failed')), R.failedText]
       : ['warn', R.reverted(n('rolled_back')), R.revertedText(n('succeeded'))];
   return h('div', { class: `callout ${cls}`, css: { 'margin-bottom': '12px' } }, h('b', null, title), h('span', null, text));

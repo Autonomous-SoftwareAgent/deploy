@@ -82,7 +82,26 @@
  *
  * @typedef {object} AuditLog  Sổ thao tác của bảng điều khiển: chỉ thêm.
  * @property {(entry: object) => Promise<void>} append
- * @property {(limit: number) => Promise<object[]>} list  mới trước
+ * @property {(limit: number, filter?: {actor?: string, action?: string, outcome?: string, q?: string}) => Promise<object[]>} list  mới trước
+ *
+ * @typedef {object} Members  Người dùng của bảng điều khiển ngoài admin: {name, role, salt, hash, createdAt}. Chỉ giữ dạng băm.
+ * @property {() => Promise<object[]>} list
+ * @property {(name: string) => Promise<object|null>} get
+ * @property {(member: object) => Promise<void>} put  thêm hoặc thay theo tên
+ * @property {(name: string) => Promise<boolean>} remove
+ *
+ * @typedef {object} DocumentStore  Kho đối tượng theo mã, dùng cho yêu cầu chờ duyệt (approvalStore) và lịch sử lần chạy (runStore).
+ * @property {(doc: {id: string, status: string}) => Promise<void>} put
+ * @property {(limit: number) => Promise<object[]>} recent  cũ trước
+ *
+ * @typedef {object} TargetStore  Môi trường do trang thêm: {name, spec, managed, state, createdBy, createdAt, detail}.
+ * @property {() => Promise<object[]>} list
+ * @property {(target: object) => Promise<void>} put
+ * @property {(name: string) => Promise<boolean>} remove
+ *
+ * @typedef {object} Meta  Dấu của những việc chỉ làm một lần.
+ * @property {(key: string) => Promise<string|null>} get
+ * @property {(key: string, value: string) => Promise<void>} set
  *
  * @typedef {object} Hasher  Băm mật khẩu (chậm, có muối), băm token (nhanh) và so sánh không lộ thời gian.
  * @property {(password: string, salt: string) => string} slowHash
@@ -116,6 +135,11 @@ const PORTS = Object.freeze({
   credentials: ['load', 'save', 'publishFirstLogin'],
   configStore: ['load', 'save'],
   auditLog: ['append', 'list'],
+  members: ['list', 'get', 'put', 'remove'],
+  approvalStore: ['put', 'recent'],
+  runStore: ['put', 'recent'],
+  targetStore: ['list', 'put', 'remove'],
+  meta: ['get', 'set'],
   random: ['bytes'],
   hasher: ['slowHash', 'fastHash', 'equal'],
   jobExecutor: ['run'],

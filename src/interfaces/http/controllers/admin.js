@@ -42,10 +42,10 @@ function adminController({ settings, auth, audit, approvals }) {
       { method: 'PATCH', path: '/api/v1/users/:name', handler: adminOnly('user.role', async (ctx) => answer(await logged(ctx, 'user.role', `${ctx.params.name} -> ${ctx.body.role}`, await auth.setRole(ctx.params.name, ctx.body.role)))) },
       { method: 'DELETE', path: '/api/v1/users/:name', handler: adminOnly('user.remove', async (ctx) => answer(await logged(ctx, 'user.remove', ctx.params.name, await auth.removeUser(ctx.params.name)))) },
       { method: 'POST', path: '/api/v1/users/:name/password', handler: adminOnly('user.password', async (ctx) => answer(await logged(ctx, 'user.password', ctx.params.name, await auth.resetPassword(ctx.params.name)))) },
-      { method: 'GET', path: '/api/v1/approvals', handler: async (ctx) => json(200, { items: approvals.list({ pendingOnly: ctx.query.get('status') === 'pending' }) }) },
+      { method: 'GET', path: '/api/v1/approvals', handler: async (ctx) => json(200, { items: await approvals.list({ pendingOnly: ctx.query.get('status') === 'pending' }) }) },
       { method: 'POST', path: '/api/v1/approvals/:id/approve', handler: decide(true) },
       { method: 'POST', path: '/api/v1/approvals/:id/reject', handler: decide(false) },
-      { method: 'GET', path: '/api/v1/audit', handler: async (ctx) => json(200, await audit.list(ctx.query.get('limit'))) },
+      { method: 'GET', path: '/api/v1/audit', handler: async (ctx) => json(200, await audit.list(ctx.query.get('limit'), { actor: ctx.query.get('actor') || undefined, action: ctx.query.get('action') || undefined, outcome: ctx.query.get('outcome') || undefined, q: ctx.query.get('q') || undefined })) },
     ],
   };
 }

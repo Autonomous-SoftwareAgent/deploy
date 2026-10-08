@@ -21,6 +21,11 @@ function makeConsoleCommand({ open }) {
       if (first.created && !memory) say(`Đã sinh mật khẩu quản trị và token cho agent. Đọc rồi XÓA tệp: ${first.where}`);
       if (first.created && memory) say(board.firstLogin());
       if (flags.has('reset-auth')) return 0;
+      // Lần đầu chạy bản có DB: chép cấu hình, sổ thao tác và người dùng từ các tệp cũ sang DB (tệp cũ giữ nguyên).
+      if (board.importRecords) {
+        try { const r = await board.importRecords(); if (r.imported && (r.versions || r.auditEntries || r.members)) say(`Đã chép dữ liệu cũ vào DB của bảng điều khiển: ${r.versions} phiên bản cấu hình, ${r.auditEntries} dòng sổ thao tác, ${r.members} người dùng.`); }
+        catch (e) { say(`Không chép được dữ liệu cũ vào DB: ${e.message}`); return 1; }
+      }
       try { await board.server.listen(); } catch (e) { say(`Không mở được cổng ${port}: ${e.message}`); return 1; }
       say(`Bảng điều khiển${memory ? ' (TRONG BỘ NHỚ, không đụng hệ nào)' : ''}: http://127.0.0.1:${port}  (chỉ máy này vào được; Ctrl+C để tắt, tắt không ảnh hưởng dịch vụ đang chạy)`);
       say(`Đích: ${board.describe || 'chính máy này'}`);

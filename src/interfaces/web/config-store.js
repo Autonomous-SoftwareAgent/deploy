@@ -5,7 +5,7 @@ import { api, errorOf } from './api.js';
 import { state, paint } from './store.js';
 
 const copy = (v) => JSON.parse(JSON.stringify(v));
-const fresh = () => ({ tab: 'environments', loaded: null, draft: null, note: '', preview: null, error: '', saving: false, users: null, roles: [], shownPassword: null, matrix: null, tester: null, audit: null, confirmWord: '', importText: '', importError: '' });
+const fresh = () => ({ tab: 'environments', loaded: null, draft: null, note: '', preview: null, error: '', saving: false, users: null, roles: [], shownPassword: null, matrix: null, tester: null, audit: null, auditFilter: { actor: '', action: '', outcome: '', q: '' }, confirmWord: '', importText: '', importError: '' });
 state.cfg = fresh();
 state.approvals = [];
 state.me = null;
@@ -25,7 +25,7 @@ async function loadSide() {
   const tab = state.cfg.tab;
   if (tab === 'matrix' || tab === 'rules') { const r = await api.branchMatrix(); if (r.status === 200) state.cfg.matrix = r.body.items; }
   if (tab === 'access' && state.cfg.loaded && state.cfg.loaded.canEdit) { const r = await api.users(); if (r.status === 200) { state.cfg.users = r.body.items; state.cfg.roles = r.body.roles; } }
-  if (tab === 'history') { const r = await api.audit(); if (r.status === 200) state.cfg.audit = r.body; }
+  if (tab === 'history') { const r = await api.audit(state.cfg.auditFilter); if (r.status === 200) state.cfg.audit = r.body; }
   paint();
 }
 
@@ -50,6 +50,7 @@ export const configActions = {
     await after(r, async () => { state.cfg.note = ''; state.cfg.preview = null; await loadConfig(false); await loadSide(); });
   },
   async restore(version) { await after(await api.configRestore(version), async () => { await loadConfig(false); await loadSide(); }); },
+  async filterAudit(patch) { Object.assign(state.cfg.auditFilter, patch); await loadSide(); },
   setConfirmWord(v) { state.cfg.confirmWord = v; paint(); },
   async reset() { state.cfg.confirmWord = ''; await after(await api.configReset(), async () => { await loadConfig(false); }); },
   setImport(v) { state.cfg.importText = v; },

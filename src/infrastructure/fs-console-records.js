@@ -1,6 +1,7 @@
 'use strict';
 // spec: BDK-S-004
-// Hai cổng lưu của bảng điều khiển, trên đĩa trong thư mục trạng thái (không commit):
+// Hai cổng lưu của bảng điều khiển ở dạng TỆP, trong thư mục trạng thái (không commit). Từ D-014 bảng điều khiển lưu vào SQLite
+// (sqlite/console-stores.js); hai bộ nối này còn dùng để ĐỌC dữ liệu cũ khi chép sang DB lần đầu:
 //   ConfigStore: console.config.json (cấu hình kèm lịch sử phiên bản), ghi qua tệp tạm rồi đổi tên để không bao giờ để lại tệp dở.
 //   AuditLog:    console.audit.jsonl (mỗi dòng một thao tác), chỉ thêm vào cuối.
 const fs = require('node:fs');
@@ -30,14 +31,17 @@ function makeFsAuditLog({ dir }) {
       fs.appendFileSync(file, JSON.stringify(entry) + '\n');
     },
     /** Mới trước. Dòng hỏng (ghi dở khi máy tắt) bị bỏ qua, không làm hỏng cả sổ. */
-    async list(limit) {
+    async list(limit, filter = {}) {
+      const q = String(filter.q || '').toLowerCase();
+      const keep = (e) => (!filter.actor || e.actor === filter.actor) && (!filter.action || String(e.action).startsWith(filter.action)) && (!filter.outcome || e.outcome === filter.outcome)
+        && (!q || `${e.target} ${e.detail}`.toLowerCase().includes(q));
       let text;
       try { text = fs.readFileSync(file, 'utf8'); } catch (e) { if (e.code === 'ENOENT') return []; throw e; }
       const out = [];
       const lines = text.split('\n');
       for (let i = lines.length - 1; i >= 0 && out.length < limit; i--) {
         if (!lines[i]) continue;
-        try { out.push(JSON.parse(lines[i])); } catch { /* dòng ghi dở */ }
+        try { const e = JSON.parse(lines[i]); if (keep(e)) out.push(e); } catch { /* dòng ghi dở */ }
       }
       return out;
     },

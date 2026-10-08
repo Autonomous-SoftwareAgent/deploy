@@ -36,7 +36,9 @@ export const C = {
   history: {
     title: 'Configuration history', current: 'current', restore: 'Restore', noNote: 'no note', empty: 'No version saved yet: the defaults are in effect.',
     exportTitle: 'Export', importTitle: 'Import', importHint: 'Paste exported JSON here…', apply: 'Apply to draft', applyHint: 'The draft still has to be previewed and saved.', badJson: (m) => `Not valid JSON: ${m}`,
-    audit: 'Audit log', auditLead: 'Who did what on this console. Entries are only ever added.', auditEmpty: 'Nothing recorded yet.', dropped: (n) => `${plural(n, 'entry')} could not be written since the console started.`,
+    audit: 'Audit log', auditLead: 'Who did what on this console. Entries are only ever added.', auditEmpty: 'No entry matches.',
+    filter: { actor: 'Actor', action: 'Action', anyAction: 'Any action', outcome: 'Outcome', anyOutcome: 'Any outcome', refused: 'Refused only', ok: 'Accepted only', q: 'Search target or detail',
+      actions: [['deploy', 'Deploy'], ['rollback', 'Rollback'], ['approval', 'Approval'], ['config', 'Configuration'], ['user', 'Users'], ['environment', 'Environments']] }, dropped: (n) => `${plural(n, 'entry')} could not be written since the console started.`,
   },
   danger: {
     reset: 'Reset the configuration to defaults', resetText: 'Removes every protection, permission limit and branch mapping. It is saved as a new version, so it can be restored from the history.',

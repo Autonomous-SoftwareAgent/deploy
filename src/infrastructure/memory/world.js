@@ -25,6 +25,8 @@ function emptyWorld() {
     credentials: null,
     consoleConfig: null, // cấu hình của bảng điều khiển kèm lịch sử phiên bản
     audit: [], // sổ thao tác của bảng điều khiển
+    members: new Map(), approvals: new Map(), runs: new Map(), targets: new Map(), meta: new Map(), // các kho còn lại của bảng điều khiển
+    instances: new Map(), // máy trên cloud (bộ nối Cloud trong bộ nhớ)
     firstLogin: null,
     databases: new Set(),
     topics: new Set(),

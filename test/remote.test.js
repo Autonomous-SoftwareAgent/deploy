@@ -193,9 +193,10 @@ function loopbackShell(world) {
 
 test('đầu-cuối: bảng điều khiển ở máy này, hệ ở máy đích: trạng thái ghi rõ đích; Deploy, bản hỏng tự lùi, Rollback đều chạy trên máy đích', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bsn-remote-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }));
+  let board; // DB của bảng điều khiển phải đóng trước khi xóa thư mục (Windows không cho xóa tệp đang mở)
+  t.after(async () => { if (board) { await board.jobs.settle(); board.closeStores(); } fs.rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
   const world = sampleWorld();
-  const board = buildRemoteConsole({ root, port: 0, target: TARGET, shell: loopbackShell(world), pollMs: 5 });
+  board = buildRemoteConsole({ root, port: 0, target: TARGET, shell: loopbackShell(world), pollMs: 5 });
   await board.auth.ensure();
   const { port } = await board.server.listen();
   t.after(async () => { await board.jobs.settle(); await board.server.close(); });

@@ -63,10 +63,40 @@ function makeMemoryStorage(world) {
 
   const auditLog = {
     async append(entry) { world.audit.push(clone(entry)); },
-    async list(limit) { return world.audit.slice(-limit).reverse().map(clone); },
+    async list(limit, filter = {}) {
+      const q = String(filter.q || '').toLowerCase();
+      const keep = (e) => (!filter.actor || e.actor === filter.actor) && (!filter.action || e.action.startsWith(filter.action)) && (!filter.outcome || e.outcome === filter.outcome)
+        && (!q || `${e.target} ${e.detail}`.toLowerCase().includes(q));
+      return world.audit.filter(keep).slice(-limit).reverse().map(clone);
+    },
   };
 
-  return { declarations, locks, ledger, secrets, configFiles, credentials, configStore, auditLog };
+  const members = {
+    async list() { return [...world.members.values()].sort((a, b) => a.name.localeCompare(b.name)).map(clone); },
+    async get(name) { return world.members.has(name) ? clone(world.members.get(name)) : null; },
+    async put(m) { world.members.set(m.name, { ...clone(m), createdAt: (world.members.get(m.name) || m).createdAt || null }); },
+    async remove(name) { return world.members.delete(name); },
+  };
+
+  const documents = (map, orderOf) => ({
+    async put(doc) { map.set(doc.id, clone(doc)); },
+    async recent(limit) { return [...map.values()].sort((a, b) => String(orderOf(a)).localeCompare(String(orderOf(b)))).slice(-limit).map(clone); },
+  });
+  const approvalStore = documents(world.approvals, (a) => a.requestedAt);
+  const runStore = documents(world.runs, (r) => r.startedAt);
+
+  const targetStore = {
+    async list() { return [...world.targets.values()].map(clone); },
+    async put(t) { world.targets.set(t.name, clone(t)); },
+    async remove(name) { return world.targets.delete(name); },
+  };
+
+  const meta = {
+    async get(key) { return world.meta.has(key) ? world.meta.get(key) : null; },
+    async set(key, value) { world.meta.set(key, String(value)); },
+  };
+
+  return { declarations, locks, ledger, secrets, configFiles, credentials, configStore, auditLog, members, approvalStore, runStore, targetStore, meta };
 }
 
 module.exports = { makeMemoryStorage };

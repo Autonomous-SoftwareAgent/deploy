@@ -37,7 +37,7 @@ async function main(argv, io = {}) {
       if (memory) board = buildMemoryConsole({ port });
       else if (target) board = buildRemoteConsole({ root, port, targetName: target, sshBin: process.env.BSN_SSH });
       else board = buildLocalConsole({ root, entry: __filename, port, sshBin: process.env.BSN_SSH });
-      return { auth: board.auth, server: board.server, describe: board.target ? describeTarget(board.target) : '', warm: () => { board.console.state().catch(() => {}); }, firstLogin: () => board.world.firstLogin, untilClosed: () => new Promise(() => {}) };
+      return { auth: board.auth, server: board.server, importRecords: board.importRecords, describe: board.target ? describeTarget(board.target) : '', warm: () => { board.console.state().catch(() => {}); }, firstLogin: () => board.world.firstLogin, untilClosed: () => new Promise(() => {}) };
     },
   });
   return runCli(argv, { app, say, env: process.env, healthSeconds: io.healthSeconds }, [consoleCommand]);
