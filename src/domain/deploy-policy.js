@@ -10,12 +10,16 @@ const noop = (from, to) => ({ kind: 'noop', from, to });
 const change = (from, to) => ({ kind: 'switch', from, to });
 
 /**
- * Deploy: đưa commit ĐÃ KHAI lên. Chỉ commit có bản đóng gói mới được đưa lên (khai báo trước, build sau: S-029).
- * facts: { name, declared, running, published, remote }
+ * Deploy: đưa một commit lên; mặc định là commit ĐÃ KHAI, hoặc commit người vận hành chọn (chosen).
+ * Chỉ commit có bản đóng gói mới được đưa lên (khai báo trước, build sau: S-029), dù là commit nào.
+ * facts: { name, declared (commit sẽ đưa lên), running, published, remote, chosen? }
  */
-function planDeploy({ name, declared, running, published, remote }) {
+function planDeploy({ name, declared, running, published, remote, chosen = false }) {
   if (!declared) return refuse(OUTCOME.NOT_DECLARED, `${name} chưa khai commit nào (chạy: node infra/bsn.js pin ${name} --apply)`);
-  if (!published) return refuse(OUTCOME.WAITING_BUILD, `commit ${short(declared)} CHỜ BUILD: chưa có bản ${remote}. Không đổi gì. Bản sinh ra khi commit đó được đẩy lên main của dịch vụ và test qua.`, { from: running, to: declared });
+  if (!published) {
+    const how = chosen ? 'Bản chỉ sinh ra cho commit được khai trong tờ khai báo: ghim commit đó, đẩy repo deploy và chờ CI.' : 'Bản sinh ra khi commit đó được đẩy lên main của dịch vụ và test qua.';
+    return refuse(OUTCOME.WAITING_BUILD, `commit ${short(declared)} CHỜ BUILD: chưa có bản ${remote}. Không đổi gì. ${how}`, { from: running, to: declared });
+  }
   if (running === declared) return noop(running, declared);
   return change(running, declared);
 }

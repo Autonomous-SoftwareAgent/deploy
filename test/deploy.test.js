@@ -288,3 +288,61 @@ test('sổ deploy: append đọc lại sổ trước khi ghi nên không mất d
   await assert.rejects(ledger.append('shop', e(ws.c[2])), /schema/);
   assert.equal(JSON.parse(fs.readFileSync(makeLayout(ws.root).ledger, 'utf8')).schema, ledgerOf.SCHEMA + 1, 'sổ không bị ghi đè');
 });
+
+// --- Đợt A của bảng điều khiển theo design: deploy đúng commit được chọn; lệnh báo tiến trình từng bước ---
+
+test('deploy <dịch-vụ> <commit>: đưa đúng commit được chọn lên (không phải commit đã khai), không sửa tờ khai báo; chưa có bản thì từ chối', async (t) => {
+  const ws = makeWorkspace(t); const w = world();
+  await running(ws, w, ws.c[0]);
+  ws.pin(ws.c[1]); w.publish(ws.c[1]); w.publish(ws.c[2]);
+  const out = [];
+  assert.equal(await cli(ws, w, ['deploy', 'shop', ws.c[2], '--apply', '--json'], out), 0);
+  const j = JSON.parse(out[0]);
+  assert.deepEqual({ ok: j.ok, from: j.from, to: j.to }, { ok: true, from: ws.c[0], to: ws.c[2] });
+  assert.equal(w.running.get('bsn-shop'), ws.c[2], 'chạy commit được chọn');
+  assert.equal(ws.pinned(), ws.c[1], 'tờ khai báo (commit được phép đóng gói) không bị sửa');
+  assert.match(j.log.join('\n'), /bản được chọn/);
+  // Tiền tố cũng nhận được khi máy có repo của dịch vụ.
+  const back = [];
+  assert.equal(await cli(ws, w, ['deploy', 'shop', ws.c[1].slice(0, 10), '--apply', '--json'], back), 0);
+  assert.equal(w.running.get('bsn-shop'), ws.c[1]);
+  // Commit được chọn mà chưa có bản: từ chối như mọi commit khác, nêu cách có bản.
+  const ws2 = makeWorkspace(t); const w2 = world();
+  await running(ws2, w2, ws2.c[0]);
+  const lines = [];
+  assert.equal(await cli(ws2, w2, ['deploy', 'shop', ws2.c[2], '--apply'], lines), 1);
+  assert.match(lines.join('\n'), /CHỜ BUILD[\s\S]*ghim commit đó/);
+  assert.equal(w2.running.get('bsn-shop'), ws2.c[0]);
+  // Mã không hợp lệ.
+  const bad = [];
+  assert.equal(await cli(ws2, w2, ['deploy', 'shop', 'xyz', '--apply'], bad), 1);
+  assert.match(bad.join('\n'), /không hợp lệ/);
+});
+
+test('--json --events: mỗi bước và mỗi dòng diễn giải được in ngay thành một dòng JSON; dòng cuối vẫn là kết quả', async (t) => {
+  const ws = makeWorkspace(t); const w = world();
+  await running(ws, w, ws.c[0]);
+  ws.pin(ws.c[1]); w.publish(ws.c[1]);
+  const out = [];
+  assert.equal(await cli(ws, w, ['deploy', 'shop', '--apply', '--json', '--events'], out), 0);
+  const objs = out.map((l) => JSON.parse(l));
+  const steps = objs.filter((o) => o.event === 'step').map((o) => `${o.phase}:${o.step}:${o.status}`);
+  assert.deepEqual(steps, ['forward:fetch:running', 'forward:fetch:succeeded', 'forward:start:running', 'forward:start:succeeded', 'forward:health:running', 'forward:health:succeeded', 'forward:record:running', 'forward:record:succeeded']);
+  assert.ok(objs.some((o) => o.event === 'log' && /ĐÃ DEPLOY/.test(o.text)));
+  const last = objs[objs.length - 1];
+  assert.equal(last.ok, true);
+  assert.equal(last.event, undefined, 'dòng cuối là kết quả, không phải sự kiện');
+});
+
+test('--events khi bản mới không khỏe: bước kiểm sức khỏe báo hỏng, rồi các bước bật lại bản cũ ở pha revert', async (t) => {
+  const ws = makeWorkspace(t); const w = world();
+  await running(ws, w, ws.c[0]);
+  ws.pin(ws.c[1]); w.publish(ws.c[1]); w.bad.add(ws.c[1]);
+  const out = [];
+  assert.equal(await cli(ws, w, ['deploy', 'shop', '--apply', '--json', '--events'], out), 1);
+  const steps = out.map((l) => JSON.parse(l)).filter((o) => o.event === 'step').map((o) => `${o.phase}:${o.step}:${o.status}`);
+  assert.ok(steps.includes('forward:health:failed'), steps.join(' '));
+  assert.ok(!steps.includes('forward:record:running'), 'bản hỏng không tới bước ghi sổ của lần đưa lên');
+  assert.ok(steps.includes('revert:health:succeeded'), 'bản cũ được bật lại và khỏe');
+  assert.equal(w.running.get('bsn-shop'), ws.c[0]);
+});

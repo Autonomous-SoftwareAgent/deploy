@@ -5,5 +5,5 @@ const { makeSwitchCommand } = require('./switch');
 module.exports = makeSwitchCommand({
   action: 'rollback',
   usage: 'rollback <dịch-vụ> [commit]',
-  call: ({ app, manifest, args, apply, verbose, seconds, by }, name, say) => app.rollback({ manifest, name, ref: args[1], apply, verbose, seconds, by, say }),
+  call: ({ app, manifest, args, apply, verbose, seconds, by, step }, name, say) => app.rollback({ manifest, name, ref: args[1], apply, verbose, seconds, by, say, step }),
 });

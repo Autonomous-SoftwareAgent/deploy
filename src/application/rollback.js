@@ -15,7 +15,7 @@ function makeRollback({ runtime, registry, ledger, declarations, locks, serviceL
   const base = (name) => ({ service: name, action: 'rollback' });
   const refused = (name, plan) => ({ ok: false, ...base(name), from: plan.from, ...(plan.to ? { to: plan.to } : {}), outcome: plan.outcome, reason: plan.reason });
 
-  async function run({ manifest, name, seconds, by, say, verbose }, from, to) {
+  async function run({ manifest, name, seconds, by, say, step, verbose }, from, to) {
     const svc = manifest.services[name];
     const local = await runtime.hasImage(localImage(name, to));
     const published = local ? true : (await registry.lookup(remoteImage(manifest.platform, name, to))).present;
@@ -23,7 +23,7 @@ function makeRollback({ runtime, registry, ledger, declarations, locks, serviceL
     if (gone) return { ...refused(name, gone), healthy: false, reverted: null };
     const box = {};
     await locks.within('tier', () => runSubSteps(tierSteps(manifest, [name], box), say));
-    const res = await switchVersion(manifest, name, from, to, { action: 'rollback', secrets: box.secrets, seconds, by, say, verbose });
+    const res = await switchVersion(manifest, name, from, to, { action: 'rollback', secrets: box.secrets, seconds, by, say, step, verbose });
     if (res.ok) {
       await declarations.save(name, { ...svc, commit: to });
       res.declarationUpdated = true;
