@@ -6,7 +6,7 @@ const A = C.access;
 
 function users(cfg, actions) {
   if (!cfg.users) return h('div', { class: 'empty' }, A.adminOnly);
-  const name = h('input', { class: 'inp mono', id: 'new-user', placeholder: 'lan.pham', autocomplete: 'off' });
+  const name = h('input', { class: 'inp mono', id: 'new-user', placeholder: 'lan-pham', autocomplete: 'off' });
   const role = h('select', { class: 'inp' }, cfg.roles.map((r) => h('option', { value: r }, r)));
   const shown = cfg.shownPassword;
   return h('div', { class: 'panel' },

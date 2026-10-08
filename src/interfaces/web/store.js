@@ -9,6 +9,7 @@ export const state = {
   collapsed: {}, // nhóm dự án đang gập
   selected: {}, // dịch vụ đang được chọn để thao tác nhiều cái một lượt
   serviceId: null, service: null, serviceTab: 'deployments',
+  serviceLogs: null, // { environmentId, lines, error, loading }: log runtime của dịch vụ đang xem ở một môi trường
   dialog: null, // { kind, environmentId, items: [{serviceId, targetSha}], pre, loading, error, commits: {dịch-vụ: [...]}, sending, typed }
   run: null, // { id, data, log: [], after }
   activeRuns: [],
@@ -83,8 +84,16 @@ export const actions = {
   selectAll(ids, on) { for (const id of ids) state.selected[id] = on; paint(); },
   clearSelection() { state.selected = {}; paint(); },
   selectedIds,
-  openService(id) { state.view = 'service'; state.serviceId = id; state.service = null; state.serviceTab = 'deployments'; paint(); loadService(); },
-  setServiceTab(tab) { state.serviceTab = tab; paint(); },
+  openService(id) { state.view = 'service'; state.serviceId = id; state.service = null; state.serviceLogs = null; state.serviceTab = 'deployments'; paint(); loadService(); },
+  setServiceTab(tab) { state.serviceTab = tab; paint(); if (tab === 'logs' && !state.serviceLogs && state.service) { const first = state.service.environments.find((c) => c.deployed); if (first) actions.loadLogs(first.environment.id); } },
+  async loadLogs(environmentId) {
+    const id = state.serviceId;
+    state.serviceLogs = { environmentId, lines: (state.serviceLogs && state.serviceLogs.environmentId === environmentId && state.serviceLogs.lines) || [], error: '', loading: true }; paint();
+    const r = await api.serviceLogs(id, environmentId);
+    if (state.serviceId !== id) return;
+    state.serviceLogs = r.status === 200 ? { environmentId, lines: r.body.lines, error: '', loading: false } : { environmentId, lines: [], error: errorOf(r), loading: false };
+    paint();
+  },
   /** Mở hộp thoại Deploy hoặc Rollback cho một hay nhiều dịch vụ. opts: { environmentId?, targetSha? (chỉ khi một dịch vụ) }. */
   async openDialog(kind, serviceIds, opts = {}) {
     const envs = (state.overview && state.overview.allEnvironments) || [];

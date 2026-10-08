@@ -8,6 +8,7 @@ const { makeServiceLock } = require('./application/service-lock');
 const { makeSwitchVersion } = require('./application/switch-version');
 const { makeCheck } = require('./application/check');
 const { makeGetStatus } = require('./application/get-status');
+const { makeGetLogs } = require('./application/get-logs');
 const { makeGetImages } = require('./application/get-images');
 const { makePin } = require('./application/pin');
 const { makeStack } = require('./application/stack');
@@ -83,6 +84,7 @@ function assemble(ports) {
     ports,
     check: makeCheck({ declarations, source }),
     getStatus: makeGetStatus({ source, runtime, ledger, serviceLock }),
+    getLogs: makeGetLogs({ runtime }),
     getImages: makeGetImages({ registry }),
     pin: makePin({ declarations, source }),
     images,
@@ -116,7 +118,7 @@ function assembleConsole(app, { credentials, jobExecutor, clock, random = system
  */
 function assembleFleet(members, { check, source, registry, clock, random = systemRandom, configStore, auditLog }) {
   assertPort('configStore', configStore); assertPort('auditLog', auditLog);
-  const environments = members.map((m, i) => makeEnvironment({ id: m.id, name: m.name, color: PALETTE[i % PALETTE.length], description: m.description, kind: m.kind, check: m.check, getStatus: m.getStatus }));
+  const environments = members.map((m, i) => makeEnvironment({ id: m.id, name: m.name, color: PALETTE[i % PALETTE.length], description: m.description, kind: m.kind, check: m.check, getStatus: m.getStatus, getLogs: m.getLogs }));
   const catalog = makeCatalog({ check, source, registry, clock });
   const audit = makeAudit({ auditLog, clock });
   const services = async () => { const m = await catalog.manifest(); return m.ok ? Promise.all(Object.keys(m.manifest.services).map(async (id) => ({ id, project: (await catalog.service(id)).project || UNGROUPED }))) : []; };
@@ -134,7 +136,7 @@ function remoteMember({ layout, target, shell, sshBin, pollMs, sleep }) {
   const remoteShell = assertPort('remoteShell', shell || makeGcloudSshShell({ target, stateDir: layout.run, sshBin: sshBin || undefined }));
   const remote = makeRemoteTarget({ shell: remoteShell, clock: systemClock, root: target.root });
   const jobExecutor = makeRemoteJobExecutor({ shell: remoteShell, random: systemRandom, root: target.root, onSettled: remote.forget, pollMs, sleep });
-  return { remote, remoteShell, member: { id: target.name, name: target.name, kind: 'remote', description: describeTarget(target), check: remote.check, getStatus: remote.getStatus, jobExecutor, forget: remote.forget } };
+  return { remote, remoteShell, member: { id: target.name, name: target.name, kind: 'remote', description: describeTarget(target), check: remote.check, getStatus: remote.getStatus, getLogs: remote.getLogs, jobExecutor, forget: remote.forget } };
 }
 
 /**
@@ -147,7 +149,7 @@ function buildLocalConsole({ root, entry, port, sshBin }) {
   const jobExecutor = makeChildProcessJobExecutor({ entry, cwd: root });
   const board = assembleConsole(app, { credentials: makeFsCredentials({ dir: ports.layout.run }), jobExecutor, clock: ports.clock });
   // Môi trường: máy này, cộng mọi đích từ xa đã khai ở targets/. Tờ khai đích sai thì bỏ qua đích đó, không làm hỏng cả bảng.
-  const members = [{ id: 'local', name: 'local', kind: 'local', description: 'The stack running on this machine', check: app.check, getStatus: app.getStatus, jobExecutor }];
+  const members = [{ id: 'local', name: 'local', kind: 'local', description: 'The stack running on this machine', check: app.check, getStatus: app.getStatus, getLogs: app.getLogs, jobExecutor }];
   const targets = makeFsTargets({ layout: ports.layout });
   const skipped = [];
   for (const name of targets.names()) {
@@ -174,8 +176,8 @@ function buildMemoryConsole({ world = sampleWorld({ delayMs: 2500 }), port, imag
   const app2 = assemble(second);
   const direct = (p, a) => makeDirectJobExecutor({ use: { loadManifest: () => p.declarations.load(), deploy: a.deploy, rollback: a.rollback }, seconds: 2 });
   const many = assembleFleet([
-    { id: 'mau-thu', name: 'mau-thu', kind: 'memory', description: 'Sample environment held in memory', check: app.check, getStatus: app.getStatus, jobExecutor: direct(ports, app) },
-    { id: 'mau-that', name: 'mau-that', kind: 'memory', description: 'Second sample environment held in memory', check: app2.check, getStatus: app2.getStatus, jobExecutor: direct(second, app2) },
+    { id: 'mau-thu', name: 'mau-thu', kind: 'memory', description: 'Sample environment held in memory', check: app.check, getStatus: app.getStatus, getLogs: app.getLogs, jobExecutor: direct(ports, app) },
+    { id: 'mau-that', name: 'mau-that', kind: 'memory', description: 'Second sample environment held in memory', check: app2.check, getStatus: app2.getStatus, getLogs: app2.getLogs, jobExecutor: direct(second, app2) },
   ], { check: app.check, source: ports.source, registry: ports.registry, clock: ports.clock, random: ports.random || systemRandom, configStore: ports.configStore, auditLog: ports.auditLog });
   const full = { ...board, ...many };
   return { ...full, app, world, worlds: [world, second.world], server: makeHttpServer(full, { port, memory: true }) };

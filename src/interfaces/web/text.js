@@ -62,8 +62,8 @@ export const T = {
       registry: 'The image registry is unreachable: the image column is unknown.', declared: 'declared', runningIn: (env) => `running · ${env}`,
       deploy: 'Deploy this commit', noImage: 'This commit has no image yet', rollback: 'Roll back to here',
     },
-    logs: 'Runtime logs of the service are not collected anywhere yet. The log of each deploy is on the run screen.',
-    vars: 'Environment variables and secrets live in the service declaration and on each target machine; the console does not read or change them yet.',
+    logs: { lead: 'The last lines the running container printed on the chosen environment. This is a quick look, not a log archive: older lines and the logs of replaced versions are not kept here.', refresh: 'Refresh', loading: 'Reading…', empty: 'The container printed nothing.', none: 'This service is not running on any environment.', environment: 'Environment' },
+    vars: { lead: 'Declared in the service declaration. Secrets show their name only: the values live on each target machine and the console never reads them.', name: 'Name', value: 'Value', source: 'Source', secret: 'secret · value not shown', empty: 'This service declares no environment variable.', sources: { env: 'env', secretEnv: 'secretEnv', database: 'database.urlEnv' } },
     settings: {
       declared: 'Declared commit', declaredKey: 'Commit in the declaration', none: 'none', meaningKey: 'Meaning',
       meaning: 'The commit CI is allowed to build. Each environment records the version it runs in its own deploy ledger.',

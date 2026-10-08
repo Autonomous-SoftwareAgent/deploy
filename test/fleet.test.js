@@ -203,3 +203,20 @@ test('POST /api/v1/deployments: có mục bị chặn thì 422 và KHÔNG mục 
   assert.equal((await b.call('GET', '/api/v1/runs/khong-co')).status, 404);
   assert.equal(BROKEN.length, 40);
 });
+
+test('log runtime và biến môi trường của dịch vụ: log theo môi trường, có giới hạn dòng; bí mật chỉ hiện tên, không bao giờ có giá trị', async (t) => {
+  const b = await boot(t);
+  const logs = await b.call('GET', '/api/v1/services/mau-tot/logs?environmentId=mau-thu&tail=3');
+  assert.equal(logs.status, 200);
+  assert.deepEqual([logs.body.lines.length, logs.body.lines[0].at, /sample log line 1 of mau-tot at aaaaaaa/.test(logs.body.lines[0].text)], [3, '2026-01-01T00:00:00.000000000Z', true]);
+  assert.equal((await b.call('GET', '/api/v1/services/khong-co/logs?environmentId=mau-thu')).status, 404);
+  assert.equal((await b.call('GET', '/api/v1/services/mau-tot/logs?environmentId=khong-co')).status, 404);
+  assert.equal((await b.call('GET', '/api/v1/services/mau-tot/logs?environmentId=mau-thu', undefined, false)).status, 401);
+  const vars = fleet.variablesOf({ env: { LOG_LEVEL: 'info' }, secretEnv: ['API_KEY'], database: { urlEnv: 'DATABASE_URL' } });
+  assert.deepEqual(vars, [
+    { name: 'API_KEY', value: null, secret: true, source: 'secretEnv' },
+    { name: 'DATABASE_URL', value: null, secret: true, source: 'database' },
+    { name: 'LOG_LEVEL', value: 'info', secret: false, source: 'env' },
+  ]);
+  assert.deepEqual((await b.call('GET', '/api/v1/services/mau-tot')).body.variables, []);
+});

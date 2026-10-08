@@ -47,6 +47,28 @@ function commits(d, id, actions) {
         h('button', { class: 'btn sm', onclick: () => actions.openDialog('rollback', [id], { targetSha: c.sha }) }, S.commits.rollback))))));
 }
 
+function logs(d, state, actions) {
+  const live = d.environments.filter((c) => c.deployed);
+  if (!live.length) return h('div', { class: 'empty' }, S.logs.none);
+  const cur = state.serviceLogs || { environmentId: live[0].environment.id, lines: [], error: '', loading: true };
+  const time = (iso) => (iso ? String(iso).slice(11, 19) : '--:--:--');
+  return h('div', { class: 'stack' }, h('div', { class: 'mut' }, S.logs.lead),
+    h('div', { class: 'row', css: { 'justify-content': 'space-between' } },
+      h('div', { class: 'seg', role: 'group', 'aria-label': S.logs.environment }, live.map((c) => h('button', { class: `segb ${c.environment.id === cur.environmentId ? 'on' : ''}`, onclick: () => actions.loadLogs(c.environment.id) }, h('span', { class: 'dot', css: { background: c.environment.color } }), c.environment.name))),
+      h('button', { class: 'btn sm', disabled: cur.loading, onclick: () => actions.loadLogs(cur.environmentId) }, cur.loading ? S.logs.loading : S.logs.refresh)),
+    cur.error ? h('div', { class: 'callout bad' }, cur.error) : null,
+    cur.lines.length ? h('div', { class: 'term', css: { 'max-height': '520px' } }, cur.lines.map((l) => h('div', null, h('span', { class: 'dim' }, time(l.at)), ' ', l.text))) : cur.loading || cur.error ? null : h('div', { class: 'empty' }, S.logs.empty));
+}
+
+function variables(d) {
+  if (!d.variables.length) return h('div', { class: 'empty' }, S.vars.empty);
+  const grid = { 'grid-template-columns': 'minmax(220px, 1fr) minmax(260px, 2fr) 180px' };
+  return h('div', { class: 'stack' }, h('div', { class: 'mut' }, S.vars.lead),
+    h('div', { class: 'panel', css: { 'overflow-x': 'auto' } },
+      h('div', { class: 'trow thead', css: grid }, h('div', { class: 'c' }, S.vars.name), h('div', { class: 'c' }, S.vars.value), h('div', { class: 'c' }, S.vars.source)),
+      d.variables.map((v) => h('div', { class: 'trow', css: grid }, h('div', { class: 'c mono' }, v.name), h('div', { class: 'c mono' }, v.secret ? h('span', { class: 'chip' }, S.vars.secret) : v.value), h('div', { class: 'c xs mut' }, S.vars.sources[v.source] || v.source)))));
+}
+
 function settings(d) {
   const G = S.settings;
   const row = (k, v) => h('div', { class: 'kv', css: { 'grid-template-columns': '260px 1fr' } }, h('span', null, k), h('span', { class: 'mono' }, v));
@@ -63,7 +85,7 @@ export function serviceView(state, actions) {
   const crumb = h('div', { class: 'crumb' }, h('button', { class: 'lnk', onclick: actions.goOverview }, S.crumb), h('span', null, '/'), h('span', null, d ? d.service.project : ''));
   if (!d) return h('div', null, crumb, h('div', { class: 'empty' }, state.error || S.reading));
   const tab = state.serviceTab;
-  const body = tab === 'deployments' ? deployments(d) : tab === 'commits' ? commits(d, id, actions) : tab === 'settings' ? settings(d) : noSource(tab === 'logs' ? S.logs : S.vars);
+  const body = tab === 'deployments' ? deployments(d) : tab === 'commits' ? commits(d, id, actions) : tab === 'settings' ? settings(d) : tab === 'logs' ? logs(d, state, actions) : variables(d);
   return h('div', null, crumb,
     h('div', { class: 'ph' }, h('div', null, h('h1', { class: 'h1 mono', css: { 'font-size': '22px' } }, d.service.name),
       h('div', { class: 'row', css: { gap: '6px' } }, d.service.kind ? h('span', { class: 'chip' }, d.service.kind) : null, h('span', { class: 'mut xs mono' }, d.service.repo || ''))),

@@ -17,6 +17,11 @@ function makeDockerRuntime({ layout, run }) {
       if (r.status !== 0) return null;
       return new Map(r.stdout.split('\n').filter(Boolean).map((l) => { const [n, c, s] = l.split('\t'); return [n, { commit: c, status: s }]; }));
     },
+    /** Mấy dòng cuối của log một dịch vụ (cả hai luồng ra), kèm dấu thời gian của Docker. Không có container: null. */
+    async logs(name, tail) {
+      const r = run('docker', ['logs', '--tail', String(tail), '--timestamps', containerName(name)]);
+      return r.status === 0 ? `${r.stdout || ''}${r.stderr || ''}` : null;
+    },
     async runningCommit(name) {
       const r = run('docker', ['ps', '--filter', `name=^${containerName(name)}$`, '--format', `{{.Label "${COMMIT_LABEL}"}}`]);
       const c = r.status === 0 ? r.stdout.trim().split('\n')[0] : '';

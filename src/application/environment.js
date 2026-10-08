@@ -7,9 +7,14 @@
  * @param {{id: string, name: string, color: string, description?: string, kind: 'local'|'remote'|'memory',
  *          check: Function, getStatus: Function}} deps
  */
-function makeEnvironment({ id, name, color, description = '', kind, check, getStatus }) {
+function makeEnvironment({ id, name, color, description = '', kind, check, getStatus, getLogs }) {
   return {
     id, name, color, description, kind,
+    /** Mấy dòng log cuối của một dịch vụ ở môi trường này. Trả { ok, lines } hoặc { ok: false, reason }. Không ném lỗi. */
+    async logs(service, tail) {
+      if (!getLogs) return { ok: false, reason: 'this environment does not expose logs' };
+      try { return await getLogs({ service, tail }); } catch (e) { return { ok: false, reason: e.message }; }
+    },
     /** Trả { ok: true, services: [dòng trạng thái] } hoặc { ok: false, unreachable, error }. Không ném lỗi. */
     async status() {
       try {

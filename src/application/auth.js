@@ -9,7 +9,8 @@ const SCHEMA = 1;
 const ADMIN = 'admin';
 const AGENT = 'agent';
 const RESERVED = [ADMIN, AGENT];
-const NAME_RE = /^[a-z][a-z0-9._-]{1,30}$/;
+// Tên người dùng đi vào lệnh chạy trên máy đích (BSN_ACTOR), nên chỉ nhận các ký tự mà đường đó nhận.
+const NAME_RE = /^[a-z][a-z0-9_-]{1,30}$/;
 const MAX_FAILS = 5;
 const LOCKOUT_MS = 60000;
 const MAX_PASSWORD = 200;
@@ -101,7 +102,7 @@ function makeAuth({ credentials, hasher, random, clock }) {
 
   /** Tạo người dùng. Mật khẩu sinh ngẫu nhiên, trả về ĐÚNG MỘT lần trong kết quả; nơi lưu chỉ giữ dạng băm. */
   const addUser = ({ name, role }) => change((list) => {
-    if (typeof name !== 'string' || !NAME_RE.test(name) || RESERVED.includes(name)) return refuse('BAD_INPUT', 'user name: 2 to 31 lowercase letters, digits, dot, dash or underscore, starting with a letter; admin and agent are reserved');
+    if (typeof name !== 'string' || !NAME_RE.test(name) || RESERVED.includes(name)) return refuse('BAD_INPUT', 'user name: 2 to 31 lowercase letters, digits, dash or underscore, starting with a letter; admin and agent are reserved');
     if (!ROLES.includes(role) || role === 'Agent') return refuse('BAD_INPUT', `role must be one of: ${ROLES.filter((r) => r !== 'Agent').join(', ')}`);
     if (list.some((u) => u.name === name)) return refuse('CONFLICT', `user ${name} already exists`);
     const f = fresh();

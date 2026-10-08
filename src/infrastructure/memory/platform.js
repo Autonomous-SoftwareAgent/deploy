@@ -7,6 +7,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function makeMemoryPlatform(world) {
   const runtime = {
     async list() { return new Map([...world.running].map(([n, v]) => [n, { commit: v.commit, status: v.status }])); },
+    async logs(name, tail) {
+      const c = world.running.get(containerName(name));
+      if (!c) return null;
+      return Array.from({ length: Math.min(tail, 5) }, (_, i) => `2026-01-01T00:00:0${i}.000000000Z sample log line ${i + 1} of ${name} at ${c.commit.slice(0, 7)}`).join('\n');
+    },
     async runningCommit(name) { const c = world.running.get(containerName(name)); return c && COMMIT_RE.test(c.commit) ? c.commit : null; },
     async hasImage(image) { return world.images.has(image); },
     async imageCommit(image) { return world.images.get(image) || ''; },

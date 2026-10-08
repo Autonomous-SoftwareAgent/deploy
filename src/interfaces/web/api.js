@@ -26,6 +26,7 @@ export const errorOf = (r) => (r.body && r.body.error && (r.body.error.message |
 export const api = {
   overview: (filters) => call('GET', `/api/v1/overview${query(filters)}`),
   service: (id) => call('GET', `/api/v1/services/${encodeURIComponent(id)}`),
+  serviceLogs: (id, environmentId) => call('GET', `/api/v1/services/${encodeURIComponent(id)}/logs${query({ environmentId, tail: 200 })}`),
   preflight: (req) => call('POST', '/api/v1/deployments/preflight', req),
   start: (req) => call('POST', '/api/v1/deployments', req),
   run: (id) => call('GET', `/api/v1/runs/${encodeURIComponent(id)}`),

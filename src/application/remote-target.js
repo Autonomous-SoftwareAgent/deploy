@@ -3,7 +3,8 @@
 // lệnh điều khiển (bsn.js) tại chỗ, qua cổng RemoteShell. Luật deploy, sổ deploy, khóa và bí mật đều nằm ở máy đích;
 // tệp này không quyết định gì, nó chỉ đọc đầu ra --json (giao diện công bố của lệnh điều khiển).
 // spec: BDK-S-002
-const { NAME_RE, COMMIT_RE, COMMIT_PREFIX_RE } = require('../domain/naming');
+const { NAME_RE, COMMIT_RE, COMMIT_PREFIX_RE, containerName } = require('../domain/naming');
+const { parseLine, MAX_TAIL } = require('./get-logs');
 
 const ACTOR_RE = /^[a-z0-9:_-]{1,40}$/;
 const JOB_RE = /^[a-f0-9]{8,32}$/;
@@ -46,6 +47,15 @@ function scripts(root) {
  */
 function makeRemoteTarget({ shell, clock, root }) {
   const sh = scripts(root);
+
+  /** Log của một dịch vụ trên máy đích: gọi thẳng docker ở đó (không cần bản lệnh mới trên máy đích). Tên dịch vụ đã qua kiểm tờ khai báo. */
+  async function getLogs({ service, tail = 200 }) {
+    const n = Math.max(1, Math.min(MAX_TAIL, Number(tail) || 200));
+    if (!NAME_RE.test(service)) return { ok: false, reason: 'invalid service name' };
+    const res = await shell.exec(`docker logs --tail ${n} --timestamps ${containerName(service)} 2>&1`);
+    if (res.code !== 0) return { ok: false, reason: `could not read the log on the target machine (exit ${res.code})` };
+    return { ok: true, lines: res.stdout.split('\n').filter(Boolean).slice(-n).map(parseLine) };
+  }
   let fresh = { at: -Infinity, value: null };
 
   /** Trạng thái của máy đích. check và getStatus được gọi liền nhau cho một lần vẽ trang: dùng chung một lần gọi sang máy đích. */
@@ -66,6 +76,7 @@ function makeRemoteTarget({ shell, clock, root }) {
       if (!s.status) return { ok: false, unreachable: s.unreachable, errors: [s.error], reposChecked: true, manifest: null };
       return { ok: true, errors: [], reposChecked: true, manifest: { services: Object.fromEntries(s.status.services.map((x) => [x.service, {}])), platform: null } };
     },
+    getLogs,
     async getStatus() { return (await status()).status; },
     /** Hỏi kho bản là việc chậm (máy đích đi ra Docker Hub): ca sử dụng của bảng điều khiển giữ kết quả này một lúc. */
     async getImages() {

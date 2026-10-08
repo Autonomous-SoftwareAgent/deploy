@@ -105,7 +105,7 @@ const PORTS = Object.freeze({
   declarations: ['load', 'save'],
   source: ['has', 'anyPresent', 'head', 'dirtyCount', 'resolve', 'subject', 'log', 'extract', 'discard'],
   configFiles: ['stale', 'install', 'hostPath'],
-  runtime: ['list', 'runningCommit', 'hasImage', 'imageCommit', 'pull', 'tag', 'build', 'applyStack', 'hasStack', 'removeStack'],
+  runtime: ['list', 'runningCommit', 'hasImage', 'imageCommit', 'pull', 'tag', 'build', 'applyStack', 'hasStack', 'removeStack', 'logs'],
   registry: ['lookup', 'tags'],
   sharedTier: ['ensureUp', 'ensureDatabase', 'ensureTopics', 'down'],
   secrets: ['ensure'],

@@ -156,6 +156,17 @@ function makeFleet({ environments, catalog, settings, clock }) {
     return { ok: true, kind, environment: view(env), items: out, gate, canProceed: !gate.blockers.length && out.every((i) => !i.blockers.length) };
   }
 
+  /** Mấy dòng log cuối của một dịch vụ ở một môi trường. */
+  async function logs({ serviceId, environmentId, tail }) {
+    const m = await catalog.manifest();
+    if (!m.ok) return m;
+    if (!m.manifest.services[serviceId]) return refuse('UNKNOWN_SERVICE', `unknown service ${serviceId}`);
+    const env = envById(environmentId);
+    if (!env) return refuse('UNKNOWN_ENVIRONMENT', `unknown environment ${environmentId}`);
+    const res = await env.logs(serviceId, tail);
+    return res.ok ? { ok: true, environmentId, lines: res.lines } : refuse('LOGS_UNAVAILABLE', res.reason);
+  }
+
   /** Cổng an toàn cho một yêu cầu không qua kiểm tra trước (các đường /api cũ). */
   async function gateFor({ kind, environmentId, actor, serviceIds }) {
     const env = envById(environmentId);
@@ -163,7 +174,7 @@ function makeFleet({ environments, catalog, settings, clock }) {
     return access.gate({ cfg: config, envId: env.id, envName: env.name, kind, actor, minute: access.weekMinuteOf(new Date(clock.millis())), serviceIds });
   }
 
-  return { overview, service, preflight, gateFor, environment: envById, environments: async () => { const { view, ordered } = await shape(); return ordered.map(view); } };
+  return { overview, service, preflight, logs, gateFor, environment: envById, environments: async () => { const { view, ordered } = await shape(); return ordered.map(view); } };
 }
 
 module.exports = { makeFleet, UNGROUPED };

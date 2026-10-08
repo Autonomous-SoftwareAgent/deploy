@@ -4,7 +4,7 @@
 const { json } = require('../respond');
 
 // Kết quả có tên của ca sử dụng -> mã HTTP (mục 4 của tài liệu API: 400 sai cú pháp, 404, 409 xung đột trạng thái, 422 vi phạm nghiệp vụ).
-const STATUS = { BAD_INPUT: 400, UNKNOWN_SERVICE: 404, UNKNOWN_ENVIRONMENT: 404, BUSY: 409, BLOCKED: 422, CONFIRMATION_REQUIRED: 422, INVALID_DECLARATIONS: 502 };
+const STATUS = { BAD_INPUT: 400, UNKNOWN_SERVICE: 404, UNKNOWN_ENVIRONMENT: 404, BUSY: 409, BLOCKED: 422, CONFIRMATION_REQUIRED: 422, INVALID_DECLARATIONS: 502, LOGS_UNAVAILABLE: 503 };
 const CODE = { BUSY: 'RUN_IN_PROGRESS' };
 
 const error = (res, extra = {}) => json(STATUS[res.outcome] || 500, { error: { code: CODE[res.outcome] || res.outcome || 'UNEXPECTED', message: res.reason || 'unexpected error', details: extra } });
@@ -42,6 +42,7 @@ function fleetController({ fleet, runs, approvals, memory = false, skippedTarget
       { method: 'GET', path: '/api/v1/overview', handler: overview },
       { method: 'GET', path: '/api/v1/environments', handler: async () => json(200, { items: await fleet.environments() }) },
       { method: 'GET', path: '/api/v1/services/:id', handler: service },
+      { method: 'GET', path: '/api/v1/services/:id/logs', handler: async (ctx) => { const res = await fleet.logs({ serviceId: ctx.params.id, environmentId: text(ctx.query, 'environmentId'), tail: text(ctx.query, 'tail') }); return res.ok ? json(200, { ...res, ok: undefined }) : error(res); } },
       { method: 'POST', path: '/api/v1/deployments/preflight', handler: preflight },
       { method: 'POST', path: '/api/v1/deployments', handler: create },
       { method: 'GET', path: '/api/v1/runs', handler: list },
