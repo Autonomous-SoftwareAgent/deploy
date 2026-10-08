@@ -8,6 +8,11 @@ const { validateTarget } = require('../domain/target');
 function makeFsTargets({ layout }) {
   const dir = path.join(layout.base, 'targets');
   return {
+    /** Tên mọi tờ khai đích đang có trên máy này (theo thứ tự chữ cái). Thư mục chưa có thì rỗng. */
+    names() {
+      try { return fs.readdirSync(dir).filter((f) => /^[a-z0-9][a-z0-9-]{0,62}\.json$/.test(f)).map((f) => f.slice(0, -5)).sort(); }
+      catch { return []; }
+    },
     /** Đọc và kiểm một đích theo tên. Ném lỗi có lời giải thích nếu thiếu hoặc sai. */
     load(name) {
       if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(name || '')) throw new Error('tên đích chỉ gồm chữ thường, số, gạch nối');

@@ -14,6 +14,7 @@ const { csrf } = require('./middleware/csrf');
 const { sessionController } = require('./controllers/session');
 const { deploymentsController } = require('./controllers/deployments');
 const { staticController } = require('./controllers/static');
+const { fleetController } = require('./controllers/fleet');
 
 const WEB_DIR = path.join(__dirname, '..', 'web');
 
@@ -22,6 +23,7 @@ function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}
   const session = sessionController(app);
   const deployments = deploymentsController({ console: app.console, memory, target });
   const assets = staticController({ dir: WEB_DIR });
+  const many = app.fleet && app.runs ? fleetController({ fleet: app.fleet, runs: app.runs, memory, skippedTargets: app.skippedTargets || [] }) : null;
 
   const match = makeRouter([
     { method: 'GET', path: '/healthz', open: true, handler: () => json(200, { ok: true }) },
@@ -34,6 +36,7 @@ function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}
     { method: 'GET', path: '/api/jobs/:id', handler: deployments.job },
     { method: 'POST', path: '/api/services/:service/deploy', handler: deployments.deploy },
     { method: 'POST', path: '/api/services/:service/rollback', handler: deployments.rollback },
+    ...(many ? many.routes : []),
   ]);
 
   let server = null;
@@ -52,8 +55,8 @@ function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}
     let out;
     try {
       const host = String(req.headers.host || '');
-      const pathname = new URL(req.url, 'http://x').pathname;
-      out = await run({ req, method: req.method, host, pathname, params: {}, body: {}, who: null });
+      const url = new URL(req.url, 'http://x');
+      out = await run({ req, method: req.method, host, pathname: url.pathname, query: url.searchParams, params: {}, body: {}, who: null });
     } catch (e) { out = fail(500, `lỗi không lường trước: ${e.message}`); }
     res.writeHead(out.status, out.headers);
     res.end(out.body);
