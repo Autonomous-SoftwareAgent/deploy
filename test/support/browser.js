@@ -24,7 +24,9 @@ async function openBrowser({ executable, headers = {} }) {
   // Cổng 0: trình duyệt tự chọn cổng trống và ghi vào tệp DevToolsActivePort trong thư mục hồ sơ.
   const child = spawn(executable, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--window-size=1440,1000', '--no-first-run', '--disable-gpu', 'about:blank'], { stdio: 'ignore' });
   const close = async () => {
-    child.kill(); await sleep(400);
+    // Giết hẳn và thôi giữ tiến trình: trình duyệt không chịu thoát cũng không được làm bộ test treo.
+    try { child.kill('SIGKILL'); } catch { /* đã thoát */ }
+    child.unref(); await sleep(400);
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* trình duyệt còn giữ tệp */ }
   };
   try {
