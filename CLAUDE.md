@@ -7,6 +7,7 @@ Thư mục này là MỘT REPO GIT RIÊNG (`Autonomous-SoftwareAgent/deploy`, c�
 ## Phạm vi
 - Làm trong `infra/` (đường dẫn tương đối trong tệp này tính từ thư mục đó). Ngoài thư mục này chỉ đọc; việc cần dịch vụ khác hay cần harness thì ghi yêu cầu vào `../docs/handoff/`.
 - Đầu phiên: đọc [docs/agent/STATUS.md](docs/agent/STATUS.md), [docs/agent/DECISIONS.md](docs/agent/DECISIONS.md), [docs/agent/CONVENTIONS.md](docs/agent/CONVENTIONS.md), [ROADMAP.md](ROADMAP.md) (việc còn lại theo chặng) và mục "Đã kiểm và chưa kiểm" của [README.md](README.md). Liệt kê các tệp `../docs/handoff/*-to-infra-*.md` và `*-to-cicd-*.md` còn `open` và báo người dùng.
+- Sửa bảng điều khiển (giao diện hay đường `/api/v1`): đọc [docs/agent/CONSOLE-PLAN.md](docs/agent/CONSOLE-PLAN.md) trước. Bản design và yêu cầu API của người dùng nằm ở `design/`.
 - Tài liệu ba tầng, `docs/service.yaml`, sơ đồ chỉ ghi qua công cụ MCP `bsn-docs` với `service="infra"`; không sửa tay. Trong `docs/` chỉ có Markdown và dữ liệu cho agent. Người đọc xem cổng `BSN_/docs/portal/infra/index.html`.
 - Cách làm CI/CD từng bước: skill `cicd` (ở `BSN_/.claude/skills/`).
 

@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Deploy Console · Bản đầu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EDEFF2;--ink:#11151C;--mut:#566070;--line:#D5DAE1;--line2:#E6E9EE;--acc:#1B4FD8;--accbg:#E7EDFC;--ok:#146C3E;--okbg:#E1F3E8;--bad:#B3261E;--badbg:#FBE7E5;--warn:#8A4B00;--warnbg:#FBEFD6;--rb:#A4410A;--rbbg:#FCEADB;--mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;--sans:'IBM Plex Sans',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+h1,h2,h3,p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+.mono{font-family:var(--mono)}
+.mut{color:var(--mut)}
+.xs{font-size:12px}
+.app{display:flex;flex-wrap:wrap;min-height:1100px}
+.side{flex:0 0 240px;min-width:min(240px,100%);background:#11151C;color:#E6E9EF;padding:20px 12px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;padding:0 8px}
+.mark{width:18px;height:18px;border:2px solid #fff;border-radius:3px;background:linear-gradient(90deg,#fff 50%,transparent 50%)}
+.navs{display:flex;flex-direction:column;gap:2px}
+.nav{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:transparent;color:#C3C9D4;padding:0 10px;border-radius:6px;min-height:40px}
+.nav:hover{background:#1C2230;color:#fff}
+.nav.on{background:#262E3D;color:#fff;font-weight:600}
+.navh{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#98A1B0;padding:14px 10px 4px}
+.dirtydot{width:8px;height:8px;border-radius:50%;background:#F2B24C}
+.pulse{width:8px;height:8px;border-radius:50%;background:#6C93F5;animation:pl 1.2s ease-in-out infinite}
+@keyframes pl{0%,100%{opacity:1}50%{opacity:.25}}
+.me{margin-top:auto;padding:0 6px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:#98A1B0}
+.main{flex:999 1 560px;min-width:0;padding:24px 28px 40px}
+.ph{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.h1{font-size:24px;font-weight:600;letter-spacing:-.01em}
+.h2{font-size:18px;font-weight:600}
+.h3{font-size:14px;font-weight:600}
+.crumb{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:13px;margin-bottom:6px}
+.lnk{border:0;background:none;color:var(--acc);padding:0;text-decoration:underline;font-size:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:0 14px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;font-weight:500;white-space:nowrap}
+.btn:hover{background:#F4F6F9}
+.btn.sm{min-height:32px;padding:0 10px;font-size:13px}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.pri:hover{background:#163FAF}
+.btn.rb{background:var(--rb);border-color:var(--rb);color:#fff}
+.btn.rb:hover{background:#873407}
+.btn.dng{color:var(--bad);border-color:#E3B4B0}
+.btn.dng:hover{background:var(--badbg)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.ib{width:32px;height:32px;border:1px solid var(--line);background:#fff;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}
+.ib:hover{background:#F4F6F9}
+.ib[disabled]{opacity:.35;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.inp{min-height:40px;border:1px solid var(--line);border-radius:6px;padding:0 10px;font:inherit;background:#fff;color:var(--ink);min-width:0;width:100%}
+.inp.xs{min-height:32px;font-size:12px;padding:0 8px}
+.inp.dark{background:#1C2230;border-color:#2C3547;color:#E6E9EF;min-height:36px}
+textarea.inp{padding:10px;min-height:160px;font-family:var(--mono);font-size:12px;line-height:1.5}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mut);min-width:0}
+.panel{background:#fff;border:1px solid var(--line);border-radius:8px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:4px;font-size:12px;font-weight:500;background:#EEF0F4;color:#3A4352;white-space:nowrap}
+.chip.warn{background:var(--warnbg);color:var(--warn)}
+.chip.bad{background:var(--badbg);color:var(--bad)}
+.chip.ok{background:var(--okbg);color:var(--ok)}
+.chip.run{background:var(--accbg);color:var(--acc)}
+.chip.rbk{background:var(--rbbg);color:var(--rb)}
+.chip.ov{background:var(--accbg);color:#1236A0}
+.dot{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+.sdot{width:9px;height:9px;border-radius:50%;flex:none;background:#8892A2}
+.sdot.healthy{background:var(--ok)}.sdot.failed{background:var(--bad)}.sdot.degraded{background:#C77700}.sdot.deploying{background:var(--acc);animation:pl 1.1s ease-in-out infinite}
+.stx{font-size:12px;font-weight:500}
+.stx.healthy{color:var(--ok)}.stx.failed{color:var(--bad)}.stx.degraded{color:var(--warn)}.stx.deploying{color:var(--acc)}.stx.passed{color:var(--ok)}.stx.running{color:var(--acc)}
+.sumrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.sum{display:inline-flex;gap:8px;align-items:baseline;min-height:40px;align-items:center;padding:0 14px;border:1px solid var(--line);background:#fff;border-radius:6px}
+.sum.bad b{color:var(--bad)}.sum.run b{color:var(--acc)}.sum.warn b{color:var(--warn)}
+.sum.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));gap:12px;margin-bottom:14px}
+.trow{display:grid;align-items:center;border-bottom:1px solid var(--line2)}
+.trow:last-child{border-bottom:0}
+.thead{background:#F6F7F9;font-size:12px;color:var(--mut);font-weight:600;border-bottom:1px solid var(--line)}
+.c{padding:10px 12px;min-width:0}
+.thead .c{display:flex;align-items:center;gap:6px;padding:9px 12px}
+.grp{background:#F1F3F6}
+.gbtn{border:0;background:none;font-weight:600;display:flex;gap:8px;align-items:center;padding:6px 0;min-height:36px}
+.svcn{border:0;background:none;padding:0;font-weight:600;font-family:var(--mono);font-size:13px;text-align:left;color:var(--ink)}
+.svcn:hover{color:var(--acc);text-decoration:underline}
+.cell{display:flex;flex-direction:column;gap:3px}
+.l1{display:flex;align-items:center;gap:7px}
+.hash{font-size:12px;background:#EEF0F4;padding:0 5px;border-radius:3px}
+.msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#2B3340;font-size:13px}
+.tm{margin-left:auto;font-size:12px;white-space:nowrap}
+.selbar{position:sticky;bottom:16px;margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:#11151C;color:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 8px 24px rgba(17,21,28,.25)}
+.selbar .btn{border-color:#2C3547}
+.dd{position:relative}
+.dd summary{list-style:none;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:8px}
+.dd summary::-webkit-details-marker{display:none}
+.dd summary:after{content:"▾";color:var(--mut)}
+.ddl{position:absolute;z-index:40;top:calc(100% + 4px);left:0;min-width:100%;width:max-content;max-width:min(560px,90vw);max-height:300px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 28px rgba(17,21,28,.18);padding:4px;display:flex;flex-direction:column}
+.ddo{border:0;background:none;text-align:left;padding:8px 10px;border-radius:4px;min-height:36px}
+.ddo:hover{background:#F1F3F6}.ddo.on{background:var(--accbg);font-weight:600}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin:16px 0 14px}
+.tabb{border:0;background:none;padding:0 14px;min-height:42px;color:var(--mut);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabb:hover{color:var(--ink)}.tabb.on{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.envcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr));gap:12px}
+.ecard{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.sp{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:11px;color:var(--mut)}
+.spb{display:flex;flex-direction:column;gap:2px}
+.split{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
+.crow{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line2)}
+.crow.sel{background:var(--accbg)}
+.crow:last-child{border-bottom:0}
+.erow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:6px 14px 6px 44px;background:#FAFBFC;border-bottom:1px solid var(--line2);font-size:13px;color:#2B3340}
+.drawer{flex:1 1 360px;max-width:520px;min-width:0;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.dh{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--line)}
+.term{background:#0F131A;color:#D5DBE6;font-family:var(--mono);font-size:12px;line-height:1.6;padding:12px 14px;overflow:auto;max-height:420px}
+.term .warn{color:#F2B24C}.term .err{color:#FF8A80}.term .ok{color:#7FD6A0}.term .dim{color:#8D97A8}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.segb{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.segb:hover{background:#F4F6F9}.segb.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:600}
+.ovl{position:fixed;inset:0;z-index:60;background:rgba(17,21,28,.55);overflow-y:auto;padding:28px 14px;display:flex;justify-content:center;align-items:flex-start}
+.modal{background:#fff;border-radius:10px;width:min(920px,100%);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.mh{display:flex;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);border-top:6px solid var(--acc);border-radius:10px 10px 0 0}
+.mh.rollback{border-top-color:var(--rb);background:var(--rbbg)}
+.mh.deploy{background:var(--accbg)}
+.mkind{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.mh.rollback .mkind{color:var(--rb)}.mh.deploy .mkind{color:var(--acc)}
+.mb{padding:18px 20px;display:flex;flex-direction:column;gap:16px}
+.mf{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid var(--line);background:#F6F7F9;border-radius:0 0 10px 10px}
+.lab{font-size:12px;font-weight:600;color:var(--mut);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.tcard{border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.ft{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ftbox{flex:1 1 220px;min-width:0;border:1px solid var(--line2);background:#F8F9FB;border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.callout{border-radius:6px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.callout.warn{background:var(--warnbg);color:#5E3300}
+.callout.bad{background:var(--badbg);color:#7A1812}
+.callout.info{background:var(--accbg);color:#13298A}
+details.chg summary{cursor:pointer;font-size:13px;color:var(--acc);min-height:28px;display:flex;align-items:center}
+.chgl{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:13px}
+.chgl div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.seg4{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mut)}
+.bar{height:6px;background:#E3E7EE;border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc)}
+.seg4.done .bar i{background:var(--ok)}.seg4.bad .bar i{background:var(--bad)}
+.seg4.done,.seg4.active{color:var(--ink);font-weight:600}.seg4.bad{color:var(--bad);font-weight:600}
+.mxc{display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--line2)}
+.mxc.inh{background:#FAFBFC}.mxc.none{background:var(--warnbg)}.mxc.ovr{background:#F4F7FF}
+.trow.defr{background:#F1F3F6}
+.envr{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:14px}
+.ord{display:flex;flex-direction:column;gap:2px}
+.sws{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sw{width:24px;height:24px;border-radius:4px;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);padding:0}
+.sw.on{box-shadow:0 0 0 2px var(--ink)}
+.pbox{border-top:1px solid var(--line2);padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:12px;background:#FAFBFC}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:13px}
+.chk input{width:18px;height:18px;margin-top:1px;flex:none}
+.savebar{position:sticky;bottom:16px;margin-top:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--ink);border-radius:8px;padding:10px 14px;box-shadow:0 8px 24px rgba(17,21,28,.18)}
+.savebar.clean{border-color:var(--line);box-shadow:none}
+.lst{margin:0;padding-left:18px;font-size:13px}
+.kv{display:grid;grid-template-columns:minmax(120px,200px) 1fr auto;gap:8px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line2);font-size:13px}
+</style>
+</helmet>
+
+<div class="app">
+<aside class="side">
+  <div class="brand"><span class="mark"></span>Deploy Console</div>
+  <nav class="navs" aria-label="Điều hướng chính">
+    <button class="nav {{navOv}}" onClick="{{goOverview}}">Tổng quan hệ thống</button>
+    <sc-if value="{{runActive}}"><button class="nav {{navRun}}" onClick="{{goRun}}"><span class="pulse"></span>Tiến trình deploy</button></sc-if>
+    <div class="navh">Cấu hình <sc-if value="{{cfgDirty}}"><span class="dirtydot" title="Có thay đổi chưa lưu"></span></sc-if></div>
+    <sc-for list="{{cfgNav}}" as="n" hint-placeholder-count="6"><button class="nav {{n.cls}}" onClick="{{n.go}}">{{n.label}}</button></sc-for>
+  </nav>
+  <div class="me">
+    <label for="roleSel">Vai trò của bạn (để thử phân quyền)</label>
+    <select id="roleSel" class="inp dark" value="{{role}}" onChange="{{setRole}}">
+      <option value="Developer">Developer</option><option value="QA">QA</option><option value="Tech lead">Tech lead</option><option value="DevOps">DevOps</option>
+    </select>
+    <span>Tran</span>
+  </div>
+</aside>
+
+<main class="main">
+
+<!-- ═══════════ 1. TỔNG QUAN ═══════════ -->
+<sc-if value="{{isOverview}}" hint-placeholder-val="{{ true }}">
+  <div class="ph">
+    <div><h1 class="h1">Tổng quan hệ thống</h1><div class="mut">{{ovSub}}</div></div>
+  </div>
+  <div class="sumrow">
+    <sc-for list="{{summary}}" as="s" hint-placeholder-count="5"><button class="sum {{s.cls}}" onClick="{{s.pick}}"><b class="mono">{{s.n}}</b><span>{{s.label}}</span></button></sc-for>
+  </div>
+  <div class="filters">
+    <div class="fld"><span>Dự án</span>
+      <details class="dd"><summary class="inp">{{projDD.current}}</summary><div class="ddl"><sc-for list="{{projDD.opts}}" as="o"><button class="ddo {{o.cls}}" onClick="{{o.pick}}">{{o.l}}</button></sc-for></div></details></div>
+    <div class="fld"><span>Môi trường</span>
+      <details class="dd"><summary class="inp">{{envDD.current}}</summary><div class="ddl"><sc-for list="{{envDD.opts}}" as="o"><button class="ddo {{o.cls}}" onClick="{{o.pick}}">{{o.l}}</button></sc-for></div></details></div>
+    <label class="fld"><span>Trạng thái</span>
+      <select class="inp" value="{{fStatus}}" onChange="{{setStatus}}"><option value="all">Tất cả trạng thái</option><option value="failed">failed</option><option value="deploying">deploying</option><option value="degraded">degraded</option><option value="healthy">healthy</option><option value="behind">Lệch phiên bản</option></select></label>
+    <label class="fld"><span>Tìm service hoặc commit</span><input class="inp" type="search" placeholder="vd. payments, refund…" value="{{fQ}}" onChange="{{setQ}}"></label>
+  </div>
+
+  <div class="panel" style="overflow-x:auto">
+    <div class="trow thead" style="grid-template-columns: {{cols}}; min-width: {{minw}}px">
+      <div class="c"><input type="checkbox" aria-label="Chọn tất cả service đang hiển thị" checked="{{allSel}}" onChange="{{toggleAll}}"></div>
+      <div class="c">Service</div>
+      <sc-for list="{{visEnvs}}" as="e" hint-placeholder-count="4"><div class="c"><span class="dot" style="background: {{e.color}}"></span>{{e.name}}<sc-if value="{{e.prot}}"><span class="chip">bảo vệ</span></sc-if></div></sc-for>
+      <div class="c"></div>
+    </div>
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+      <sc-if value="{{r.isGroup}}">
+        <div class="trow grp" style="grid-template-columns: {{cols}}; min-width: {{minw}}px">
+          <div class="c" style="grid-column: 1 / -1; padding-top:2px; padding-bottom:2px">
+            <button class="gbtn" aria-expanded="{{r.open}}" onClick="{{r.toggle}}"><span>{{r.icon}}</span>{{r.name}}<span class="mut" style="font-weight:400">{{r.count}} service</span><sc-if value="{{r.attn}}"><span class="chip warn">{{r.attnText}}</span></sc-if></button>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{r.isSvc}}">
+        <div class="trow" style="grid-template-columns: {{cols}}; min-width: {{minw}}px">
+          <div class="c"><input type="checkbox" aria-label="Chọn {{r.name}}" checked="{{r.sel}}" onChange="{{r.onSel}}"></div>
+          <div class="c" style="display:flex;flex-direction:column;gap:3px">
+            <button class="svcn" onClick="{{r.onOpen}}">{{r.name}}</button>
+            <div class="row" style="gap:6px"><span class="chip">{{r.type}}</span><sc-if value="{{r.warn}}"><span class="chip warn" title="{{r.warnText}}">cấu hình nhánh</span></sc-if></div>
+          </div>
+          <sc-for list="{{r.cells}}" as="cell">
+            <div class="c cell">
+              <sc-if value="{{cell.has}}">
+                <div class="l1"><span class="sdot {{cell.cls}}"></span><span class="mono hash">{{cell.hash}}</span><span class="stx {{cell.cls}}">{{cell.label}}</span><span class="tm mut">{{cell.time}}</span></div>
+                <div class="msg" title="{{cell.msg}}">{{cell.msg}}</div>
+                <sc-if value="{{cell.behind}}"><span><span class="chip warn">{{cell.behindText}}</span></span></sc-if>
+              </sc-if>
+              <sc-if value="{{cell.none}}"><span class="mut xs">Chưa deploy</span></sc-if>
+            </div>
+          </sc-for>
+          <div class="c"><button class="btn sm" onClick="{{r.onDeploy}}">Deploy…</button></div>
+        </div>
+      </sc-if>
+    </sc-for>
+    <sc-if value="{{noRows}}"><div class="c mut" style="padding:28px 16px;text-align:center">Không có service nào khớp bộ lọc.</div></sc-if>
+  </div>
+
+  <sc-if value="{{hasSel}}">
+    <div class="selbar">
+      <div><b>{{selCount}} service đã chọn</b> <span style="color:#98A1B0">· mỗi service giữ commit đích riêng ở bước xác nhận</span></div>
+      <div class="row">
+        <button class="btn sm" onClick="{{clearSel}}">Bỏ chọn</button>
+        <button class="btn sm rb" onClick="{{selRollback}}">Rollback…</button>
+        <button class="btn sm pri" onClick="{{selDeploy}}">Deploy…</button>
+      </div>
+    </div>
+  </sc-if>
+</sc-if>
+
+<!-- ═══════════ 2. CHI TIẾT SERVICE ═══════════ -->
+<sc-if value="{{isService}}" hint-placeholder-val="{{ false }}">
+  <div class="crumb"><button class="lnk" onClick="{{goOverview}}">Tổng quan</button><span>/</span><span>{{sv.project}}</span></div>
+  <div class="ph">
+    <div><h1 class="h1 mono" style="font-size:22px">{{sv.name}}</h1><div class="mut xs mono">{{sv.repo}}</div></div>
+    <div class="row"><button class="btn rb" onClick="{{svRollback}}">Rollback…</button><button class="btn pri" onClick="{{svDeploy}}">Deploy…</button></div>
+  </div>
+
+  <div class="envcards">
+    <sc-for list="{{envCards}}" as="c" hint-placeholder-count="4">
+      <div class="ecard" style="border-top: 3px solid {{c.color}}">
+        <div class="row" style="justify-content:space-between"><b>{{c.name}}</b>
+          <sc-if value="{{c.has}}"><span class="row" style="gap:6px"><span class="sdot {{c.cls}}"></span><span class="stx {{c.cls}}">{{c.label}}</span></span></sc-if></div>
+        <sc-if value="{{c.has}}">
+          <div class="l1"><span class="mono hash">{{c.hash}}</span><span class="msg" title="{{c.msg}}">{{c.msg}}</span></div>
+          <div class="xs mut">{{c.author}} · {{c.time}} · nhánh ánh xạ: {{c.branchTxt}}</div>
+          <sc-if value="{{c.behind}}"><span><span class="chip warn">{{c.behindText}}</span></span></sc-if>
+          <div class="sp">
+            <div class="spb"><span>Lỗi (%) trước → sau deploy</span>
+              <svg viewBox="0 0 120 36" width="100%" height="36" role="img" aria-label="Tỷ lệ lỗi trước và sau lần deploy gần nhất"><line x1="{{c.sepX}}" x2="{{c.sepX}}" y1="0" y2="36" stroke="#8892A2" stroke-dasharray="2 2"></line><polyline points="{{c.errPts}}" fill="none" stroke="#B3261E" stroke-width="1.5"></polyline></svg>
+              <b class="mono" style="color:var(--ink)">{{c.errTxt}}</b></div>
+            <div class="spb"><span>Độ trễ p95 trước → sau</span>
+              <svg viewBox="0 0 120 36" width="100%" height="36" role="img" aria-label="Độ trễ p95 trước và sau lần deploy gần nhất"><line x1="{{c.sepX}}" x2="{{c.sepX}}" y1="0" y2="36" stroke="#8892A2" stroke-dasharray="2 2"></line><polyline points="{{c.latPts}}" fill="none" stroke="#1B4FD8" stroke-width="1.5"></polyline></svg>
+              <b class="mono" style="color:var(--ink)">{{c.latTxt}}</b></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{c.none}}"><div class="mut">Chưa có bản deploy ở môi trường này.</div></sc-if>
+        <div class="row"><button class="btn sm pri" onClick="{{c.onDeploy}}">Deploy</button><button class="btn sm" disabled="{{c.none}}" onClick="{{c.onRollback}}">Rollback</button></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <sc-for list="{{svTabs}}" as="t"><button class="tabb {{t.cls}}" role="tab" aria-selected="{{t.sel}}" onClick="{{t.go}}">{{t.label}}</button></sc-for>
+  </div>
+
+  <div class="split">
+    <div style="flex:1 1 520px;min-width:0">
+
+      <sc-if value="{{tabTimeline}}">
+        <sc-if value="{{tabIsCommits}}"><div class="row" style="margin-bottom:10px"><span class="mut xs">Lọc theo nhánh</span>
+          <div class="fld" style="width:240px"><details class="dd"><summary class="inp">{{brDD.current}}</summary><div class="ddl"><sc-for list="{{brDD.opts}}" as="o"><button class="ddo {{o.cls}}" onClick="{{o.pick}}">{{o.l}}</button></sc-for></div></details></div></div></sc-if>
+        <div class="panel" style="overflow:hidden">
+          <sc-for list="{{items}}" as="it" hint-placeholder-count="8">
+            <sc-if value="{{it.isCommit}}">
+              <div class="crow {{it.rowCls}}">
+                <span class="mono hash" style="font-size:13px">{{it.hash}}</span>
+                <div style="flex:1 1 220px;min-width:0"><div style="font-weight:500">{{it.msg}}</div>
+                  <div class="xs mut">{{it.author}} · <span class="mono">{{it.branch}}</span> · {{it.time}}<sc-if value="{{it.mig}}"> · <b style="color:var(--warn)">có migration</b></sc-if></div></div>
+                <span class="stx {{it.build}}">build {{it.build}}</span>
+                <sc-for list="{{it.running}}" as="rn"><span class="chip" style="background: {{rn.color}}; color:#fff">đang chạy · {{rn.name}}</span></sc-for>
+                <div class="row" style="gap:6px"><button class="btn sm pri" disabled="{{it.noDeploy}}" onClick="{{it.onDeploy}}">Deploy commit này</button><button class="btn sm" disabled="{{it.noRb}}" onClick="{{it.onRb}}">Rollback về đây</button><button class="btn sm" onClick="{{it.onCmp}}">So sánh với bản đang chạy</button></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{it.isEvent}}">
+              <div class="erow"><span class="dot" style="background: {{it.color}}"></span><b>{{it.envName}}</b><span class="chip {{it.kindCls}}">{{it.kindLabel}}</span><span>{{it.by}} · {{it.time}}</span><span class="stx {{it.stCls}}">{{it.stLabel}}</span><button class="lnk" onClick="{{it.onLog}}">xem log</button></div>
+            </sc-if>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tabLogs}}">
+        <div class="seg" style="margin-bottom:10px"><sc-for list="{{envTabs}}" as="e"><button class="segb {{e.cls}}" onClick="{{e.pick}}"><span class="dot" style="background: {{e.color}}"></span>{{e.name}}</button></sc-for></div>
+        <div class="panel" style="overflow:hidden"><div class="dh"><b>Log runtime · {{tabEnvName}}</b><span class="chip run">trực tiếp</span></div>
+          <div class="term"><sc-for list="{{logLines}}" as="l"><div><span class="dim">{{l.t}}</span> <span class="{{l.lv}}">{{l.x}}</span></div></sc-for></div></div>
+      </sc-if>
+
+      <sc-if value="{{tabVars}}">
+        <div class="seg" style="margin-bottom:10px"><sc-for list="{{envTabs}}" as="e"><button class="segb {{e.cls}}" onClick="{{e.pick}}"><span class="dot" style="background: {{e.color}}"></span>{{e.name}}</button></sc-for></div>
+        <div class="panel" style="overflow:hidden">
+          <div class="kv" style="background:#F6F7F9;font-size:12px;color:var(--mut);font-weight:600"><span>Tên biến</span><span>Giá trị ở {{tabEnvName}}</span><span></span></div>
+          <sc-for list="{{vars}}" as="v"><div class="kv"><span class="mono">{{v.k}}</span><span class="mono">{{v.shown}}</span><span class="row"><sc-if value="{{v.secret}}"><span class="chip">secret</span></sc-if><button class="lnk" onClick="{{v.toggle}}">{{v.btn}}</button></span></div></sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tabSettings}}">
+        <div class="stack">
+          <div class="panel"><div class="dh"><b>Ánh xạ nhánh của service này</b><button class="lnk" onClick="{{goMatrix}}">Sửa trong ma trận</button></div>
+            <sc-for list="{{svMap}}" as="m"><div class="kv"><span><span class="dot" style="background: {{m.color}}"></span> {{m.env}}</span><span class="mono">{{m.rule}}</span><span class="chip">{{m.src}}</span></div></sc-for></div>
+          <div class="panel"><div class="dh"><b>Phụ thuộc</b></div>
+            <div class="kv" style="grid-template-columns:200px 1fr"><span>Service này dùng</span><span class="mono">{{svUses}}</span></div>
+            <div class="kv" style="grid-template-columns:200px 1fr"><span>Được dùng bởi</span><span class="mono">{{svUsedBy}}</span></div></div>
+          <div class="panel"><div class="dh"><b>Health check</b></div>
+            <div class="kv" style="grid-template-columns:200px 1fr"><span>Đường dẫn</span><span class="mono">GET /healthz · timeout 3s · 3 lần thử</span></div>
+            <div class="kv" style="grid-template-columns:200px 1fr"><span>Tự động rollback mặc định</span><span>Bật — có thể đổi lại trong từng lần deploy</span></div></div>
+        </div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{drawerOpen}}">
+      <aside class="drawer" aria-label="Ngăn chi tiết">
+        <div class="dh"><div><div class="h3">{{drawerTitle}}</div><div class="xs mut">{{drawerSub}}</div></div><button class="ib" aria-label="Đóng ngăn chi tiết" onClick="{{closeDrawer}}">×</button></div>
+        <sc-if value="{{drawerIsDiff}}">
+          <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+            <div class="lab" style="margin:0">So với bản đang chạy ở</div>
+            <div class="seg"><sc-for list="{{diffEnvs}}" as="e"><button class="segb {{e.cls}}" onClick="{{e.pick}}"><span class="dot" style="background: {{e.color}}"></span>{{e.name}} <span class="mono xs mut">{{e.hash}}</span></button></sc-for></div>
+            <div class="callout info">{{diffSummary}}</div>
+            <sc-if value="{{diffMig}}"><div class="callout warn"><b>Có migration database trong khoảng này</b><span>Kiểm tra thứ tự chạy migration trước khi deploy.</span></div></sc-if>
+            <div class="lab" style="margin:4px 0 0">Commit trong khoảng ({{diffCommitCount}})</div>
+            <div class="chgl"><sc-for list="{{diffCommits}}" as="c"><div><span class="mono hash">{{c.hash}}</span><span>{{c.msg}}</span></div></sc-for></div>
+            <div class="lab" style="margin:4px 0 0">Tệp thay đổi ({{diffFileCount}})</div>
+            <div class="chgl"><sc-for list="{{diffFiles}}" as="f"><div><span class="mono xs" style="flex:1 1 200px;min-width:0;overflow-wrap:anywhere">{{f.path}}</span><span class="mono xs" style="color:var(--ok)">+{{f.add}}</span><span class="mono xs" style="color:var(--bad)">−{{f.del}}</span></div></sc-for></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{drawerIsLog}}"><div class="term"><sc-for list="{{drawerLog}}" as="l"><div><span class="dim">{{l.t}}</span> <span class="{{l.lv}}">{{l.x}}</span></div></sc-for></div></sc-if>
+      </aside>
+    </sc-if>
+  </div>
+</sc-if>
+
+<!-- ═══════════ 4. TIẾN TRÌNH DEPLOY ═══════════ -->
+<sc-if value="{{isRun}}" hint-placeholder-val="{{ false }}">
+  <div class="ph">
+    <div><div class="crumb"><span>Tiến trình deploy</span></div><h1 class="h1">{{runTitle}}</h1><div class="mut">{{runSub}}</div></div>
+    <div class="row">
+      <sc-if value="{{runLive}}"><label class="chk" style="align-items:center"><input type="checkbox" checked="{{runAutoRb}}" onChange="{{toggleRunRb}}"><span>Tự động rollback nếu health check thất bại</span></label><button class="btn dng" onClick="{{cancelRun}}">Hủy deploy</button></sc-if>
+      <sc-if value="{{runDone}}"><button class="btn" onClick="{{goOverview}}">Về tổng quan</button></sc-if>
+    </div>
+  </div>
+  <sc-if value="{{runDone}}"><div class="callout {{runResCls}}" style="margin-bottom:12px"><b>{{runResTitle}}</b><span>{{runResText}}</span></div></sc-if>
+  <div class="stack">
+    <sc-for list="{{runTargets}}" as="t">
+      <div class="panel" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div class="row" style="justify-content:space-between"><div class="row"><b class="mono">{{t.name}}</b><span class="mono hash">{{t.fromHash}}</span><span>→</span><span class="mono hash">{{t.toHash}}</span></div><span class="chip {{t.chipCls}}">{{t.statusText}}</span></div>
+        <div class="steps"><sc-for list="{{t.segs}}" as="s"><div class="seg4 {{s.cls}}"><div class="bar"><i style="width: {{s.w}}%"></i></div><span>{{s.label}}</span></div></sc-for></div>
+      </div>
+    </sc-for>
+    <div class="panel" style="overflow:hidden"><div class="dh"><b>Log trực tiếp</b><span class="chip {{runLogChip}}">{{runLogLabel}}</span></div>
+      <div class="term" style="max-height:360px"><sc-for list="{{runLog}}" as="l"><div><span class="dim">{{l.t}}</span> <span class="{{l.lv}}">{{l.x}}</span></div></sc-for></div></div>
+  </div>
+</sc-if>
+
+<!-- ═══════════ 5. CẤU HÌNH ═══════════ -->
+<sc-if value="{{isConfig}}" hint-placeholder-val="{{ false }}">
+  <div class="ph"><div><h1 class="h1">Cấu hình môi trường và nhánh</h1><div class="mut">Bạn đang sửa bản nháp. Chỉ khi bấm lưu, thay đổi mới có hiệu lực cho toàn hệ thống.</div></div></div>
+  <div class="tabs" role="tablist"><sc-for list="{{cfgNav}}" as="n"><button class="tabb {{n.cls}}" role="tab" onClick="{{n.go}}">{{n.label}}</button></sc-for></div>
+
+  <sc-if value="{{cfgEnvs}}">
+    <div class="stack">
+      <sc-for list="{{envList}}" as="e">
+        <div class="panel">
+          <div class="envr">
+            <div class="ord"><button class="ib" aria-label="Chuyển {{e.name}} lên" disabled="{{e.first}}" onClick="{{e.up}}">↑</button><button class="ib" aria-label="Chuyển {{e.name}} xuống" disabled="{{e.last}}" onClick="{{e.down}}">↓</button></div>
+            <span class="dot" style="background: {{e.color}}; width:14px; height:40px"></span>
+            <label class="fld" style="flex:1 1 140px"><span>Tên</span><input class="inp" value="{{e.name}}" onChange="{{e.setName}}"></label>
+            <label class="fld" style="flex:2 1 240px"><span>Mô tả</span><input class="inp" value="{{e.desc}}" onChange="{{e.setDesc}}"></label>
+            <div class="fld"><span>Màu</span><div class="sws"><sc-for list="{{e.swatches}}" as="w"><button class="sw {{w.cls}}" style="background: {{w.c}}" aria-label="Chọn màu {{w.c}}" onClick="{{w.pick}}"></button></sc-for></div></div>
+            <button class="btn sm" aria-expanded="{{e.open}}" onClick="{{e.toggle}}">Mức bảo vệ {{e.arrow}}</button>
+            <button class="btn sm dng" onClick="{{e.askDel}}">Xóa</button>
+          </div>
+          <div class="row" style="padding:0 14px 12px 14px;margin-top:-4px"><sc-for list="{{e.badges}}" as="b"><span class="chip">{{b}}</span></sc-for><sc-if value="{{e.noBadges}}"><span class="mut xs">Không có bảo vệ — ai có quyền cũng deploy được.</span></sc-if></div>
+          <sc-if value="{{e.confirmDel}}"><div class="callout bad" style="margin:0 14px 14px"><b>Xóa môi trường {{e.name}}?</b><span>Mọi ô trong ma trận và phân quyền của môi trường này cũng bị xóa khỏi bản nháp.</span><div class="row" style="margin-top:6px"><button class="btn sm dng" onClick="{{e.doDel}}">Xóa khỏi bản nháp</button><button class="btn sm" onClick="{{e.cancelDel}}">Giữ lại</button></div></div></sc-if>
+          <sc-if value="{{e.open}}">
+            <div class="pbox">
+              <label class="chk"><input type="checkbox" checked="{{e.pApproval}}" onChange="{{e.setApproval}}"><span><b>Yêu cầu phê duyệt</b><br><span class="mut">Cần một Tech lead hoặc DevOps duyệt trước khi chạy.</span></span></label>
+              <label class="chk"><input type="checkbox" checked="{{e.pType}}" onChange="{{e.setType}}"><span><b>Gõ tên service khi deploy</b><br><span class="mut">Chặn thao tác nhầm môi trường.</span></span></label>
+              <label class="chk"><input type="checkbox" checked="{{e.pRestrict}}" onChange="{{e.setRestrict}}"><span><b>Giới hạn người được deploy</b><br><span class="mut">Chỉ các vai trò được cấp quyền ở mục Phân quyền.</span></span></label>
+              <div class="stack" style="gap:8px"><label class="chk"><input type="checkbox" checked="{{e.pFreeze}}" onChange="{{e.setFreeze}}"><span><b>Khóa deploy theo khung giờ</b><br><span class="mut">Định dạng: T2…T7, CN và giờ, vd. T6 16:00.</span></span></label>
+                <div class="row"><label class="fld" style="width:140px"><span>Từ</span><input class="inp mono" value="{{e.fFrom}}" onChange="{{e.setFrom}}"></label><label class="fld" style="width:140px"><span>Đến</span><input class="inp mono" value="{{e.fTo}}" onChange="{{e.setTo}}"></label></div></div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+      <div class="panel" style="padding:14px"><div class="row" style="align-items:flex-end"><label class="fld" style="flex:1 1 220px"><span>Tên môi trường mới (tên bất kỳ)</span><input class="inp" placeholder="vd. uat, demo, eu-prod" value="{{newEnvName}}" onChange="{{setNewEnv}}"></label><button class="btn pri" disabled="{{newEnvOff}}" onClick="{{addEnv}}">Thêm môi trường</button></div></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{cfgMatrix}}">
+    <div class="row" style="margin-bottom:10px;justify-content:space-between">
+      <div class="fld" style="width:260px"><span>Dự án</span><details class="dd"><summary class="inp">{{mxDD.current}}</summary><div class="ddl"><sc-for list="{{mxDD.opts}}" as="o"><button class="ddo {{o.cls}}" onClick="{{o.pick}}">{{o.l}}</button></sc-for></div></details></div>
+      <div class="xs mut">Hàng nền xám là mặc định của nhóm. Ô có nhãn “ghi đè” chỉ áp dụng cho một service.</div>
+    </div>
+    <div class="panel" style="overflow-x:auto">
+      <div class="trow thead" style="grid-template-columns: {{mxCols}}; min-width: {{mxMin}}px"><div class="c">Service</div><sc-for list="{{mxEnvs}}" as="e"><div class="c"><span class="dot" style="background: {{e.color}}"></span>{{e.name}}</div></sc-for><div class="c">Cảnh báo</div></div>
+      <sc-for list="{{mxRows}}" as="r">
+        <div class="trow {{r.rowCls}}" style="grid-template-columns: {{mxCols}}; min-width: {{mxMin}}px">
+          <div class="c"><div class="mono" style="font-weight:600;font-size:13px">{{r.name}}</div><div class="xs mut">{{r.sub}}</div></div>
+          <sc-for list="{{r.cells}}" as="c">
+            <div class="c mxc {{c.cls}}">
+              <select class="inp xs" aria-label="Chế độ triển khai" value="{{c.mode}}" onChange="{{c.setMode}}"><option value="manual">Thủ công</option><option value="auto">Tự động khi push vào nhánh</option><option value="pattern">Theo mẫu nhánh</option><option value="none">Chưa đặt</option></select>
+              <sc-if value="{{c.hasVal}}"><input class="inp xs mono" aria-label="Nhánh hoặc mẫu nhánh" placeholder="{{c.ph}}" value="{{c.value}}" onChange="{{c.setVal}}"></sc-if>
+              <div class="row" style="gap:6px;min-height:20px"><sc-if value="{{c.over}}"><span class="chip ov">ghi đè</span><button class="lnk" onClick="{{c.reset}}">đặt lại</button></sc-if><sc-if value="{{c.inh}}"><span class="xs mut">kế thừa nhóm</span></sc-if></div>
+            </div>
+          </sc-for>
+          <div class="c" style="display:flex;flex-direction:column;gap:4px"><sc-for list="{{r.warns}}" as="w"><span class="chip warn" style="white-space:normal">{{w}}</span></sc-for></div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{cfgRules}}">
+    <div class="split">
+      <div style="flex:2 1 520px;min-width:0" class="stack">
+        <div class="panel">
+          <div class="dh"><b>Quy tắc nhánh chung</b><span class="xs mut">Quy tắc phía trên được ưu tiên</span></div>
+          <sc-for list="{{ruleList}}" as="r">
+            <div class="crow {{r.hit}}">
+              <label class="fld" style="flex:1 1 150px"><span>Mẫu nhánh</span><input class="inp mono" value="{{r.pattern}}" onChange="{{r.setPattern}}"></label>
+              <div class="fld" style="flex:1 1 180px"><span>Đưa vào môi trường</span>
+                <details class="dd"><summary class="inp">{{r.targetLabel}}</summary><div class="ddl"><sc-for list="{{r.targets}}" as="o"><button class="ddo {{o.cls}}" onClick="{{o.pick}}">{{o.l}}</button></sc-for></div></details></div>
+              <sc-if value="{{r.eph}}"><label class="fld" style="width:140px"><span>Tự xóa sau (ngày)</span><input class="inp mono" type="number" min="1" value="{{r.ttl}}" onChange="{{r.setTtl}}"></label></sc-if>
+              <sc-if value="{{r.isHit}}"><span class="chip ok">khớp</span></sc-if>
+              <button class="btn sm dng" onClick="{{r.del}}">Xóa</button>
+            </div>
+          </sc-for>
+          <div class="crow"><button class="btn sm" onClick="{{addRule}}">Thêm quy tắc</button></div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1 1 300px;padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div class="h3">Thử tên nhánh</div>
+        <label class="fld"><span>Nhập tên nhánh</span><input class="inp mono" value="{{ruleTest}}" onChange="{{setRuleTest}}"></label>
+        <div class="callout {{testCls}}"><b>{{testTitle}}</b><span>{{testText}}</span></div>
+        <div class="xs mut">Môi trường tạm được tạo theo tên nhánh và tự xóa sau số ngày bạn đặt cho quy tắc.</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{cfgPerms}}">
+    <div class="panel" style="overflow-x:auto">
+      <div class="trow thead" style="grid-template-columns: {{pmCols}}; min-width: {{pmMin}}px"><div class="c">Vai trò</div><sc-for list="{{pmEnvs}}" as="e"><div class="c"><span class="dot" style="background: {{e.color}}"></span>{{e.name}}</div></sc-for></div>
+      <sc-for list="{{pmRows}}" as="r">
+        <div class="trow" style="grid-template-columns: {{pmCols}}; min-width: {{pmMin}}px">
+          <div class="c"><b>{{r.role}}</b></div>
+          <sc-for list="{{r.cells}}" as="c"><div class="c"><select class="inp xs" aria-label="Quyền của {{r.role}} ở {{c.env}}" value="{{c.val}}" onChange="{{c.set}}"><option value="0">Không có quyền</option><option value="1">Chỉ deploy</option><option value="2">Deploy và rollback</option></select></div></sc-for>
+        </div>
+      </sc-for>
+    </div>
+    <div class="xs mut" style="margin-top:8px">Quyền chỉ có hiệu lực ở môi trường bật “Giới hạn người được deploy”. Dùng ô vai trò ở thanh bên để thử.</div>
+  </sc-if>
+
+  <sc-if value="{{cfgHistory}}">
+    <div class="split">
+      <div class="panel" style="flex:1 1 380px;min-width:0"><div class="dh"><b>Lịch sử thay đổi cấu hình</b></div>
+        <sc-for list="{{histList}}" as="h"><div class="crow"><div style="flex:1 1 200px;min-width:0"><div style="font-weight:500">{{h.summary}}</div><div class="xs mut">{{h.by}} · {{h.at}}</div></div><sc-if value="{{h.current}}"><span class="chip ok">hiện tại</span></sc-if><sc-if value="{{h.canRestore}}"><button class="btn sm" onClick="{{h.restore}}">Hoàn tác về bản này</button></sc-if></div></sc-for></div>
+      <div class="panel" style="flex:1 1 420px;min-width:0;padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div class="h3">Export</div>
+        <div class="seg"><button class="segb {{fmtJson}}" onClick="{{setJson}}">JSON</button><button class="segb {{fmtYaml}}" onClick="{{setYaml}}">YAML</button></div>
+        <textarea class="inp" readonly="{{true}}" aria-label="Cấu hình xuất ra" style="min-height:220px" value="{{exportText}}"></textarea>
+        <div class="h3">Import</div>
+        <textarea class="inp" aria-label="Dán cấu hình JSON để nhập" placeholder="Dán JSON đã export vào đây…" value="{{importText}}" onChange="{{setImport}}"></textarea>
+        <sc-if value="{{importErr}}"><div class="callout bad">{{importErr}}</div></sc-if>
+        <div class="row"><button class="btn" onClick="{{doImport}}">Áp dụng vào bản nháp</button><span class="xs mut">Nhận JSON; bản nháp vẫn cần xem trước tác động trước khi lưu.</span></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{cfgDanger}}">
+    <div class="stack">
+      <sc-for list="{{dangerList}}" as="d">
+        <div class="panel" style="border-color:#E3B4B0;padding:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between"><div style="flex:1 1 320px"><b>{{d.title}}</b><div class="mut">{{d.text}}</div></div><button class="btn dng" disabled="{{d.off}}" onClick="{{d.go}}">{{d.btn}}</button></div>
+      </sc-for>
+      <div class="xs mut">Các thao tác này chỉ sửa bản nháp. Bạn vẫn xem trước tác động và xác nhận ở thanh lưu bên dưới.</div>
+    </div>
+  </sc-if>
+
+  <div class="savebar {{saveCls}}">
+    <div><b>{{dirtyText}}</b><sc-if value="{{cfgDirty}}"><div class="xs mut">{{dirtyDetail}}</div></sc-if></div>
+    <div class="row"><button class="btn" disabled="{{cleanOff}}" onClick="{{discardDraft}}">Bỏ thay đổi</button><button class="btn pri" disabled="{{cleanOff}}" onClick="{{openPreview}}">Xem trước tác động</button></div>
+  </div>
+</sc-if>
+
+</main>
+</div>
+
+<!-- ═══════════ 3. HỘP THOẠI DEPLOY / ROLLBACK ═══════════ -->
+<sc-if value="{{dialogOpen}}" hint-placeholder-val="{{ false }}">
+<div class="ovl">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="{{dlgTitle}}">
+    <div class="mh {{dlgModeCls}}">
+      <div><div class="mkind">{{dlgKind}}</div><h2 class="h2">{{dlgTitle}}</h2><div class="mut xs">{{dlgSub}}</div></div>
+      <button class="ib" aria-label="Đóng hộp thoại" onClick="{{closeDialog}}">×</button>
+    </div>
+    <div class="mb">
+      <div><div class="lab">Môi trường đích</div>
+        <div class="seg"><sc-for list="{{dlgEnvs}}" as="e"><button class="segb {{e.cls}}" onClick="{{e.pick}}"><span class="dot" style="background: {{e.color}}"></span>{{e.name}}<sc-if value="{{e.prot}}"><span class="chip">bảo vệ</span></sc-if></button></sc-for></div>
+        <div class="mut xs" style="margin-top:6px">{{dlgEnvDesc}}</div></div>
+
+      <sc-if value="{{dlgMulti}}"><div><div class="lab">Rà soát lần cuối · service → commit đích</div>
+        <div class="panel" style="overflow-x:auto"><sc-for list="{{dlgReview}}" as="r"><div class="crow"><b class="mono" style="flex:1 1 160px">{{r.name}}</b><span class="mono hash">{{r.from}}</span><span>→</span><span class="mono hash">{{r.to}}</span><span class="mut" style="flex:2 1 200px;min-width:0">{{r.msg}}</span><span class="chip {{r.cls}}">{{r.state}}</span></div></sc-for></div></div></sc-if>
+
+      <sc-for list="{{dlgTargets}}" as="t">
+        <div class="tcard">
+          <div class="row" style="justify-content:space-between"><div class="row"><b class="mono">{{t.name}}</b><span class="mut xs">{{t.project}}</span></div><div class="row"><sc-if value="{{t.mig}}"><span class="chip warn">có migration</span></sc-if><sc-if value="{{t.deps}}"><span class="chip warn">{{t.depCount}} service phụ thuộc</span></sc-if></div></div>
+          <div class="ft">
+            <div class="ftbox"><span class="xs mut">Đang chạy ở {{envName}}</span><span><span class="mono hash">{{t.fromHash}}</span> <span class="xs">{{t.fromMsg}}</span></span></div>
+            <span style="font-size:20px">→</span>
+            <div class="ftbox" style="border-color: {{t.toBorder}}"><span class="xs mut">Commit đích</span><details class="dd"><summary class="inp"><span class="mono">{{t.toHash}}</span>&nbsp;<span class="xs" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{t.toMsg}}</span></summary><div class="ddl"><sc-for list="{{t.options}}" as="o"><button class="ddo {{o.cls}}" onClick="{{o.pick}}"><span class="mono">{{o.hash}}</span> · {{o.msg}} <span class="mut xs">({{o.branch}}{{o.note}})</span></button></sc-for></div></details></div>
+          </div>
+          <div class="row"><span class="xs mut">Gợi ý theo quy tắc của {{envName}}:</span><sc-for list="{{t.sugs}}" as="s"><button class="btn sm" onClick="{{s.pick}}">{{s.label}}</button></sc-for></div>
+          <sc-if value="{{t.hasBlock}}"><div class="callout bad"><b>{{t.blockText}}</b></div></sc-if>
+          <sc-if value="{{t.warnBack}}"><div class="callout warn"><b>Commit đích cũ hơn bản đang chạy</b><span>Thao tác này lùi phiên bản. Dùng Rollback nếu muốn ghi nhận đúng loại.</span></div></sc-if>
+          <details class="chg" open="{{t.open}}"><summary>{{t.changeTitle}}</summary><div class="chgl"><sc-for list="{{t.changes}}" as="c"><div><span class="chip {{c.cls}}">{{c.dir}}</span><span class="mono hash">{{c.hash}}</span><span>{{c.msg}}</span><sc-if value="{{c.mig}}"><span class="chip warn">migration</span></sc-if></div></sc-for></div></details>
+          <sc-if value="{{t.mig}}"><div class="callout warn"><b>{{t.migTitle}}</b><span>{{t.migText}}</span></div></sc-if>
+          <sc-if value="{{t.deps}}"><div class="callout info"><b>Service đang dựa vào {{t.name}}</b><span class="mono">{{t.depNames}}</span><span>Kiểm tra tương thích API trước khi tiếp tục.</span></div></sc-if>
+        </div>
+      </sc-for>
+
+      <sc-if value="{{dlgGlobalBlock}}"><div class="callout bad"><b>{{dlgGlobalBlockText}}</b></div></sc-if>
+      <sc-if value="{{dlgFreezeInfo}}"><div class="callout info">{{dlgFreezeInfo}}</div></sc-if>
+
+      <sc-if value="{{dlgNeedType}}"><div class="tcard" style="border-color:#C9CFD8"><div class="h3">Xác nhận bằng cách gõ tên</div><label class="fld"><span>{{typePrompt}}</span><input class="inp mono" placeholder="{{typeExpect}}" value="{{typed}}" onChange="{{setTyped}}"></label></div></sc-if>
+      <sc-if value="{{dlgNeedApproval}}"><div class="tcard" style="border-color:#C9CFD8"><div class="h3">Cần người phê duyệt</div>
+        <label class="fld"><span>Gửi yêu cầu tới</span><select class="inp" value="{{approver}}" onChange="{{setApprover}}"><option value="">Chọn người phê duyệt…</option><option value="Lan Phạm (Tech lead)">Lan Phạm (Tech lead)</option><option value="Quang Võ (DevOps)">Quang Võ (DevOps)</option><option value="Hà Nguyễn (Tech lead)">Hà Nguyễn (Tech lead)</option></select></label>
+        <div class="callout {{apprCls}}"><b>{{apprText}}</b></div>
+        <sc-if value="{{apprPending}}"><div><button class="btn sm" onClick="{{simApprove}}">Giả lập: người duyệt đồng ý</button></div></sc-if></div></sc-if>
+    </div>
+    <div class="mf">
+      <label class="chk" style="align-items:center"><input type="checkbox" checked="{{dlgAutoRb}}" onChange="{{toggleDlgRb}}"><span>Tự động rollback nếu health check thất bại</span></label>
+      <div class="row"><button class="btn" onClick="{{closeDialog}}">Hủy</button><button class="btn {{confirmCls}}" disabled="{{confirmOff}}" onClick="{{confirmAction}}">{{confirmLabel}}</button></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{previewOpen}}" hint-placeholder-val="{{ false }}">
+<div class="ovl">
+  <div class="modal" style="width:min(720px,100%)" role="dialog" aria-modal="true" aria-label="Xem trước tác động">
+    <div class="mh deploy"><div><div class="mkind">Trước khi lưu</div><h2 class="h2">Xem trước tác động</h2></div><button class="ib" aria-label="Đóng" onClick="{{closePreview}}">×</button></div>
+    <div class="mb">
+      <div class="row"><span class="chip run">{{pvServices}} service bị ảnh hưởng</span><span class="chip">{{pvCells}} ô ánh xạ đổi</span><span class="chip {{pvAutoCls}}">{{pvAutoCount}} deploy tự động sẽ chạy</span></div>
+      <div><div class="lab">Thay đổi</div><ul class="lst"><sc-for list="{{pvChanges}}" as="c"><li>{{c}}</li></sc-for></ul></div>
+      <sc-if value="{{pvHasAuto}}"><div class="callout warn"><b>Deploy tự động sẽ chạy ngay sau khi lưu</b><div class="chgl"><sc-for list="{{pvAutos}}" as="a"><div><span class="mono">{{a.svc}}</span><span>→</span><b>{{a.env}}</b><span class="mono hash">{{a.from}}</span><span>→</span><span class="mono hash">{{a.hash}}</span><span class="mut">({{a.branch}})</span></div></sc-for></div></div></sc-if>
+    </div>
+    <div class="mf"><span class="xs mut">Có thể hoàn tác trong Lịch sử thay đổi.</span><div class="row"><button class="btn" onClick="{{closePreview}}">Quay lại sửa</button><button class="btn pri" onClick="{{saveConfig}}">Lưu thay đổi</button></div></div>
+  </div>
+</div>
+</sc-if>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+function rng(seed){var s=(Math.imul(seed,2654435761)>>>0)||1;return function(){s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};}
+function hstr(s){var h=7;for(var i=0;i<s.length;i++)h=(Math.imul(h,31)+s.charCodeAt(i))>>>0;return h;}
+function clone(o){return JSON.parse(JSON.stringify(o));}
+function pad(n){return (n<10?'0':'')+n;}
+function ago(m){if(m==null)return '—';if(m<1)return 'vừa xong';if(m<60)return Math.round(m)+' phút trước';if(m<1440)return Math.round(m/60)+' giờ trước';return Math.round(m/1440)+' ngày trước';}
+function globMatch(p,b){try{var e=String(p||'').replace(/[.+^$(){}|\[\]\\]/g,'\\$&').replace(/\*/g,'.*');return new RegExp('^'+e+'$').test(b);}catch(x){return false;}}
+
+var PROJECTS=['Thanh toán','Tài khoản','Đơn hàng','Dữ liệu'];
+var SLUG={'Thanh toán':'thanh-toan','Tài khoản':'tai-khoan','Đơn hàng':'don-hang','Dữ liệu':'du-lieu'};
+var SVC_DEF=[['payments-api','Thanh toán','api'],['payments-web','Thanh toán','web'],['payments-worker','Thanh toán','worker'],['payments-migrate','Thanh toán','migration'],['auth-api','Tài khoản','api'],['auth-web','Tài khoản','web'],['profile-service','Tài khoản','api'],['order-api','Đơn hàng','api'],['order-worker','Đơn hàng','worker'],['dispatch-service','Đơn hàng','api'],['tracking-web','Đơn hàng','web'],['report-api','Dữ liệu','api'],['etl-worker','Dữ liệu','worker'],['warehouse-migrate','Dữ liệu','migration']];
+var USES={'payments-api':['auth-api'],'payments-web':['payments-api','auth-api'],'payments-worker':['payments-api'],'auth-web':['auth-api'],'profile-service':['auth-api'],'order-api':['payments-api','auth-api'],'order-worker':['order-api'],'dispatch-service':['order-api'],'tracking-web':['order-api','dispatch-service'],'report-api':['payments-api','order-api'],'etl-worker':['order-api','payments-api']};
+var AUTHORS=['Minh Trần','Lan Phạm','Quang Võ','Hà Nguyễn','Đức Lê','Thảo Bùi'];
+var FEATS=['checkout-v2','retry-policy','saved-cards','bulk-export','tracing'];
+var HOTFIX=['timeout-gateway','null-order','rounding','cors-header'];
+var ROLES=['Developer','QA','Tech lead','DevOps'];
+var PALETTE=['#6B7686','#7A4CC2','#0E8383','#B1275E','#B46A00','#2F6FDE','#3B7D3B','#5A4A42'];
+var MODE_L={manual:'Thủ công',auto:'Tự động',pattern:'Theo mẫu',none:'Chưa đặt'};
+var MSGS=['feat: thêm endpoint hoàn tiền một phần','fix: timeout khi gọi cổng thanh toán','perf: cache danh sách phương thức','refactor: tách validator ra module riêng','fix: xử lý idempotency key bị trùng','chore: nâng cấp thư viện http','feat: webhook cập nhật trạng thái','test: bổ sung test luồng hoàn tiền','fix: làm tròn sai số tiền tệ','feat: giới hạn tốc độ theo khách hàng','docs: cập nhật mô tả OpenAPI','fix: race condition khi tạo đơn','chore: cấu hình health check','feat: ghi log kèm correlation id','fix: sai múi giờ ở báo cáo ngày','perf: gom truy vấn danh sách','refactor: gom cấu hình vào một chỗ','fix: rò rỉ kết nối cơ sở dữ liệu','feat: retry có backoff','chore: gỡ cờ tính năng cũ','fix: lỗi 500 khi thiếu header','feat: thêm chỉ số latency','test: ổn định test tích hợp','chore: cập nhật Dockerfile'];
+var MIGS=['db: migration thêm cột refund_reason','db: migration tạo index theo created_at','db: migration tách bảng giao dịch','db: migration đổi kiểu cột số tiền'];
+var FILES={api:['src/handlers/refund.ts','src/services/ledger.ts','src/db/queries.ts','src/middleware/rate-limit.ts','test/refund.spec.ts','openapi.yaml'],web:['app/routes/checkout.tsx','app/components/PaymentForm.tsx','app/lib/api.ts','styles/checkout.css'],worker:['workers/settle.ts','workers/retry.ts','lib/queue.ts','test/settle.spec.ts'],migration:['migrations/0042_refund_reason.sql','migrations/0043_orders_index.sql','schema/schema.sql']};
+
+function buildCommits(s,n){var r=rng(n*97+3),out=[],t=25+Math.floor(r()*60);
+  var br=['develop','develop','feat/'+FEATS[n%FEATS.length],'main','main','release/2.4','release/2.4','release/2.4','hotfix/'+HOTFIX[n%HOTFIX.length],'release/2.3','release/2.3','release/2.3','main','main','main','main'];
+  for(var i=0;i<16;i++){var mig=s.type==='migration'?(i%3!==0):((i+n)%7===3);var hs='';for(var k=0;k<7;k++)hs+='0123456789abcdef'.charAt(Math.floor(r()*16));
+    var build=((i*7+n)%13===5)?'failed':((i===0&&n%5===0)?'running':'passed');
+    out.push({hash:hs,msg:mig?MIGS[(i+n)%MIGS.length]:MSGS[(i*5+n*3)%MSGS.length],author:AUTHORS[(i+n*2)%AUTHORS.length],branch:br[i],build:build,mig:mig,time:t});
+    t+=70+Math.floor(r()*700);}
+  return out;}
+function buildServices(){return SVC_DEF.map(function(d,k){var s={id:d[0],name:d[0],project:d[1],type:d[2],k:k,repo:'git.example.com/'+SLUG[d[1]]+'/'+d[0],uses:USES[d[0]]||[],flaky:d[0]==='payments-worker'};s.commits=buildCommits(s,k+1);return s;});}
+function buildDeploys(S){var D={},O={'payments-api|prod':'degraded','order-worker|stg':'failed','dispatch-service|beta':'deploying','tracking-web|dev':'failed','profile-service|beta':'degraded'};
+  S.forEach(function(s){D[s.id]={};var r=rng(s.k+50);var base={dev:0,beta:3+(s.k%2),stg:5+(s.k%3),prod:9+(s.k%3)};
+    ['dev','beta','stg','prod'].forEach(function(e){var idx=base[e];while(idx<15&&s.commits[idx].build!=='passed')idx++;var c=s.commits[idx];
+      D[s.id][e]={idx:idx,status:O[s.id+'|'+e]||'healthy',at:Math.max(1,c.time-10-Math.floor(r()*30)),by:c.author};});});
+  return D;}
+function buildEvents(S,D){var ev={};S.forEach(function(s){ev[s.id]=[];Object.keys(D[s.id]).forEach(function(eid){var d=D[s.id][eid];
+  ev[s.id].push({id:s.id+eid+'a',envId:eid,idx:d.idx,kind:'deploy',by:s.commits[d.idx].author,at:d.at,status:d.status});
+  var p=Math.min(15,d.idx+2);ev[s.id].push({id:s.id+eid+'b',envId:eid,idx:p,kind:'deploy',by:s.commits[p].author,at:d.at+1800+((s.k*131)%900),status:'superseded'});});});return ev;}
+function buildCfg(){var pro=function(a,t,r,f){return {approval:a,typeName:t,restrict:r,freeze:{on:f,from:'T6 16:00',to:'T2 08:00'}};};
+  var envs=[{id:'dev',name:'dev',color:PALETTE[0],desc:'Tích hợp liên tục cho đội phát triển',protect:pro(false,false,false,false)},{id:'beta',name:'beta',color:PALETTE[1],desc:'Dùng thử nội bộ',protect:pro(false,false,false,false)},{id:'stg',name:'stg',color:PALETTE[2],desc:'Gần giống production, QA nghiệm thu',protect:pro(false,false,true,false)},{id:'prod',name:'prod',color:PALETTE[3],desc:'Phục vụ khách hàng thật',protect:pro(true,true,true,true)}];
+  var gd={};PROJECTS.forEach(function(p){gd[p]={dev:{mode:'auto',value:'develop'},beta:{mode:'auto',value:'main'},stg:{mode:'pattern',value:'release/*'},prod:{mode:'manual',value:'release/*'}};});
+  gd['Dữ liệu'].beta={mode:'manual',value:'main'};
+  var matrix={'auth-api':{stg:{mode:'auto',value:'main'}},'warehouse-migrate':{stg:{mode:'none',value:''}},'payments-migrate':{prod:{mode:'manual',value:'release/2.4'}},'tracking-web':{prod:{mode:'manual',value:'main'}}};
+  var perms={dev:{Developer:2,QA:2,'Tech lead':2,DevOps:2},beta:{Developer:2,QA:1,'Tech lead':2,DevOps:2},stg:{Developer:1,QA:1,'Tech lead':2,DevOps:2},prod:{Developer:0,QA:0,'Tech lead':2,DevOps:2}};
+  var rules=[{id:'r1',pattern:'release/*',envId:'stg',ephemeral:false,ttl:7},{id:'r2',pattern:'hotfix/*',envId:'beta',ephemeral:false,ttl:7},{id:'r3',pattern:'preview/*',envId:null,ephemeral:true,ttl:7}];
+  return {envs:envs,groupDefaults:gd,matrix:matrix,perms:perms,rules:rules};}
+
+function resolve(C,s,eid){var o=C.matrix[s.id]&&C.matrix[s.id][eid];if(o)return {mode:o.mode,value:o.value,over:true};var g=C.groupDefaults[s.project]&&C.groupDefaults[s.project][eid];if(g)return {mode:g.mode,value:g.value,over:false};return {mode:'none',value:'',over:false};}
+function headIdx(s,rule){if(!rule||rule.mode==='none'||!rule.value)return -1;for(var i=0;i<s.commits.length;i++)if(globMatch(rule.value,s.commits[i].branch))return i;return -1;}
+function behindN(s,d,rule){if(!d||!rule||rule.mode==='none'||!rule.value)return 0;var n=0;for(var i=0;i<d.idx;i++)if(globMatch(rule.value,s.commits[i].branch))n++;return n;}
+function svcWarn(C,s){var miss=[],map={};C.envs.forEach(function(e){var r=resolve(C,s,e.id);if(r.mode==='none'||!r.value)miss.push(e.name);else if(r.mode!=='manual'){(map[r.value]=map[r.value]||[]).push(e.name);}});
+  var dup=Object.keys(map).filter(function(k){return map[k].length>1;}).map(function(k){return 'Nhánh '+k+' tự động deploy tới '+map[k].join(' và ');});
+  var w=[];if(miss.length)w.push('Thiếu cấu hình: '+miss.join(', '));return w.concat(dup);}
+function dayMin(s){var m=/^(T[2-7]|CN)\s+(\d{1,2}):(\d{2})$/.exec(String(s||'').trim());if(!m)return null;var d=m[1]==='CN'?6:parseInt(m[1].slice(1),10)-2;return d*1440+parseInt(m[2],10)*60+parseInt(m[3],10);}
+function frozenNow(f){if(!f||!f.on)return false;var a=dayMin(f.from),b=dayMin(f.to);if(a==null||b==null)return false;var n=new Date();var t=((n.getDay()+6)%7)*1440+n.getHours()*60+n.getMinutes();return a<=b?(t>=a&&t<b):(t>=a||t<b);}
+function spark(s,eid,status){var r=rng(hstr(s.id+eid)),n=24,sep=14,e=[],l=[];var fe=status==='failed'?6:status==='degraded'?3:status==='deploying'?1.4:1;var fl=status==='failed'?1.8:status==='degraded'?1.7:1.03;
+  for(var i=0;i<n;i++){var post=i>=sep;e.push((0.35+r()*0.2)*(post?fe:1));l.push((180+r()*30)*(post?fl:1));}
+  var pts=function(a){var mx=Math.max.apply(null,a)*1.15;return a.map(function(v,i){return (i*(120/(n-1))).toFixed(1)+','+(34-(v/mx)*30).toFixed(1);}).join(' ');};
+  var av=function(a,x,y){var t=0;for(var i=x;i<y;i++)t+=a[i];return t/(y-x);};
+  return {err:pts(e),lat:pts(l),sepX:(sep*(120/(n-1))).toFixed(1),errTxt:av(e,0,sep).toFixed(2)+'% → '+av(e,sep,n).toFixed(2)+'%',latTxt:Math.round(av(l,0,sep))+' → '+Math.round(av(l,sep,n))+' ms'};}
+function genLog(s,eid,status,seed){var r=rng(hstr(s.id+eid)+seed),H=['GET /healthz 200 3ms','GET /v1/items 200 41ms','POST /v1/orders 201 88ms','job heartbeat ok','cache hit ratio 0.93','GET /v1/me 200 12ms'],m=0,out=[];
+  for(var i=0;i<16;i++){m+=Math.floor(r()*2)+1;var lv='',x=H[Math.floor(r()*H.length)];
+    if(status==='degraded'&&i%4===2){lv='warn';x='p95 vượt ngưỡng 800ms trên /v1/orders';}
+    if(status==='failed'&&i%3===1){lv='err';x='health check thất bại: upstream connect error';}
+    out.push({t:'14:'+pad(20+m),x:x,lv:lv});}
+  return out;}
+function cfgDiff(A,B){var out=[],ae=A.envs,be=B.envs;
+  be.forEach(function(e){var o=ae.filter(function(x){return x.id===e.id;})[0];if(!o)out.push('Thêm môi trường "'+e.name+'"');else{if(o.name!==e.name)out.push('Đổi tên "'+o.name+'" thành "'+e.name+'"');if(o.color!==e.color)out.push('Đổi màu môi trường "'+e.name+'"');if(o.desc!==e.desc)out.push('Sửa mô tả "'+e.name+'"');if(JSON.stringify(o.protect)!==JSON.stringify(e.protect))out.push('Đổi mức bảo vệ của "'+e.name+'"');}});
+  ae.forEach(function(o){if(!be.some(function(e){return e.id===o.id;}))out.push('Xóa môi trường "'+o.name+'"');});
+  var oa=ae.map(function(e){return e.id;}).filter(function(id){return be.some(function(e){return e.id===id;});}),ob=be.map(function(e){return e.id;}).filter(function(id){return ae.some(function(e){return e.id===id;});});
+  if(JSON.stringify(oa)!==JSON.stringify(ob))out.push('Đổi thứ tự môi trường');
+  var cnt=function(a,b){var n=0,k1=Object.keys(a).concat(Object.keys(b));k1.filter(function(k,i){return k1.indexOf(k)===i;}).forEach(function(k){var x=a[k]||{},y=b[k]||{},k2=Object.keys(x).concat(Object.keys(y));k2.filter(function(q,i){return k2.indexOf(q)===i;}).forEach(function(q){if(JSON.stringify(x[q]||null)!==JSON.stringify(y[q]||null))n++;});});return n;};
+  var g=cnt(A.groupDefaults,B.groupDefaults),m=cnt(A.matrix,B.matrix),p=cnt(A.perms,B.perms);
+  if(g)out.push('Mặc định nhóm: '+g+' ô thay đổi');if(m)out.push('Ghi đè theo service: '+m+' ô thay đổi');if(p)out.push('Phân quyền: '+p+' ô thay đổi');
+  if(JSON.stringify(A.rules)!==JSON.stringify(B.rules))out.push('Quy tắc nhánh có thay đổi');
+  return out;}
+function yv(v){if(typeof v==='string')return (/^[A-Za-z0-9_.\/-]+$/.test(v)&&!/^(true|false|null|\d+)$/.test(v))?v:JSON.stringify(v);return String(v);}
+function yk(k){return /^[A-Za-z0-9_-]+$/.test(k)?k:JSON.stringify(k);}
+function toYaml(o,ind){ind=ind||0;var p='';for(var i=0;i<ind;i++)p+='  ';
+  if(Array.isArray(o)){if(!o.length)return p+'[]\n';return o.map(function(v){return (v&&typeof v==='object')?p+'-\n'+toYaml(v,ind+1):p+'- '+yv(v)+'\n';}).join('');}
+  if(o&&typeof o==='object'){var ks=Object.keys(o);if(!ks.length)return p+'{}\n';return ks.map(function(key){var v=o[key];if(v&&typeof v==='object'){var empty=Array.isArray(v)?!v.length:!Object.keys(v).length;return empty?p+yk(key)+': '+(Array.isArray(v)?'[]':'{}')+'\n':p+yk(key)+':\n'+toYaml(v,ind+1);}return p+yk(key)+': '+yv(v)+'\n';}).join('');}
+  return p+yv(o)+'\n';}
+function closeDd(e){try{var d=e.currentTarget.closest('details');if(d)d.removeAttribute('open');}catch(x){}}
+var STEPS=['Build','Test','Deploy','Health check'];
+
+class Component extends DCLogic {
+  constructor(a,b){
+    super(a,b);
+    var S=buildServices(),cfg=buildCfg(),D=buildDeploys(S);this.S=S;
+    var h2=clone(cfg);h2.rules=h2.rules.slice(0,2);var h1=clone(h2);h1.envs[2].protect.restrict=false;
+    this.state={view:'overview',cfgTab:'envs',svcId:null,svcTab:'deployments',commitBranch:'all',tabEnv:null,reveal:{},drawer:null,
+      filters:{project:'all',env:'all',status:'all',q:''},collapsed:{},selected:{},role:'DevOps',
+      saved:cfg,draft:clone(cfg),deploys:D,events:buildEvents(S,D),
+      history:[{id:'h3',at:'hôm qua 16:20',by:'Lan Phạm',summary:'Thêm quy tắc môi trường tạm preview/*',snap:clone(cfg)},{id:'h2',at:'3 ngày trước',by:'Quang Võ',summary:'Bật giới hạn người deploy cho stg',snap:h2},{id:'h1',at:'2 tuần trước',by:'Hà Nguyễn',summary:'Khởi tạo 4 môi trường dev, beta, stg, prod',snap:h1}],
+      dialog:null,preview:false,run:null,expandEnv:null,confirmDel:null,ruleTest:'release/2.5',exportFmt:'json',importText:'',importErr:'',newEnvName:'',mxProject:'all'};
+    this.timer=null;
+  }
+  componentDidMount(){var me=this;this.timer=setInterval(function(){me.tick();},700);}
+  componentWillUnmount(){if(this.timer)clearInterval(this.timer);}
+
+  svc(id){return this.S.filter(function(s){return s.id===id;})[0];}
+  dependents(id){return this.S.filter(function(x){return x.uses.indexOf(id)>=0;});}
+  setF(p){this.setState({filters:Object.assign({},this.state.filters,p)});}
+  mut(fn){var d=clone(this.state.draft);fn(d);this.setState({draft:d});}
+  can(C,envId,mode){var e=C.envs.filter(function(x){return x.id===envId;})[0];if(!e||!e.protect.restrict)return true;var v=(C.perms[envId]||{})[this.state.role]||0;return v>=(mode==='rollback'?2:1);}
+
+  defaultTarget(C,mode,svcId,envId){var s=this.svc(svcId),d=(this.state.deploys[svcId]||{})[envId];
+    if(mode==='rollback'){var i=(d?d.idx:0)+1;while(i<s.commits.length-1&&s.commits[i].build!=='passed')i++;return Math.min(i,s.commits.length-1);}
+    var h=headIdx(s,resolve(C,s,envId));if(h>=0)return h;return 0;}
+  openDialog(mode,ids,opts){var C=this.state.saved;opts=opts||{};var me=this;var envId=opts.envId;
+    if(!envId){envId=C.envs[0].id;if(ids.length===1&&opts.toIdx!=null){var dd=this.state.deploys[ids[0]]||{};var f=C.envs.filter(function(e){var d=dd[e.id];return mode==='rollback'?(d&&d.idx<opts.toIdx):(!d||d.idx!==opts.toIdx);})[0];if(f)envId=f.id;}}
+    var targets=ids.map(function(id){return {svcId:id,toIdx:opts.toIdx!=null?opts.toIdx:me.defaultTarget(C,mode,id,envId)};});
+    this.setState({dialog:{mode:mode,envId:envId,targets:targets,typed:'',approver:'',appr:'none',autoRb:true}});}
+  dlgPatch(p){this.setState({dialog:Object.assign({},this.state.dialog,p)});}
+  dlgEnv(envId){var C=this.state.saved,me=this,dl=this.state.dialog;this.dlgPatch({envId:envId,targets:dl.targets.map(function(t){return {svcId:t.svcId,toIdx:me.defaultTarget(C,dl.mode,t.svcId,envId)};}),typed:'',appr:'none'});}
+  dlgSetTo(svcId,idx){var dl=this.state.dialog;this.dlgPatch({targets:dl.targets.map(function(t){return t.svcId===svcId?{svcId:svcId,toIdx:idx}:t;}),appr:'none'});}
+
+  startRun(){var dl=this.state.dialog,D=clone(this.state.deploys);
+    var targets=dl.targets.map(function(t){var d=D[t.svcId][dl.envId];var prev=d?clone(d):null;D[t.svcId][dl.envId]=d?Object.assign({},d,{status:'deploying'}):{idx:t.toIdx,status:'deploying',at:0,by:'Bạn'};
+      return {svcId:t.svcId,envId:dl.envId,mode:dl.mode,from:d?d.idx:null,to:t.toIdx,prev:prev,step:0,p:0,status:'running',started:[false,false,false,false],ticks:0};});
+    var env=this.state.saved.envs.filter(function(e){return e.id===dl.envId;})[0];
+    this.setState({deploys:D,dialog:null,view:'run',drawer:null,run:{envId:dl.envId,envName:env?env.name:dl.envId,mode:dl.mode,autoRb:dl.autoRb,targets:targets,sec:0,done:false,cancelled:false,log:[{t:'00:00',x:'Bắt đầu '+(dl.mode==='rollback'?'rollback':'deploy')+' '+targets.length+' service lên '+(env?env.name:'')+(dl.autoRb?' · tự động rollback: bật':' · tự động rollback: tắt'),lv:'ok'}]}});}
+  finalize(r){var D=clone(this.state.deploys),E=clone(this.state.events);
+    r.targets.forEach(function(t){var cur=t.prev?Object.assign({},t.prev):null;var ev={id:'n'+Math.random().toString(36).slice(2,8),envId:t.envId,idx:t.to,kind:t.mode,by:'Bạn',at:0,status:t.status};
+      if(t.status==='success')D[t.svcId][t.envId]={idx:t.to,status:'healthy',at:0,by:'Bạn'};
+      else if(t.status==='failed')D[t.svcId][t.envId]={idx:t.to,status:'failed',at:0,by:'Bạn'};
+      else{if(cur)D[t.svcId][t.envId]=cur;else delete D[t.svcId][t.envId];}
+      if(t.status!=='cancelled')E[t.svcId].unshift(ev);});
+    this.setState({deploys:D,events:E});}
+  tick(){var run=this.state.run;if(!run||run.done)return;var r=clone(run),me=this,S=this.S;r.sec+=1;var secs=Math.floor(r.sec*0.7);var ts=pad(Math.floor(secs/60))+':'+pad(secs%60);var log=r.log;
+    r.targets.forEach(function(t){var s=me.svc(t.svcId),c=s.commits[t.to],pre=r.targets.length>1?'['+s.name+'] ':'';var L=function(x,lv){log.push({t:ts,x:pre+x,lv:lv||''});};
+      if(t.status==='running'){
+        if(!t.started[t.step]){t.started[t.step]=true;
+          if(t.step===0){L('▸ Build · checkout '+c.hash+' ('+c.branch+')','ok');L('$ docker build -t '+s.name+':'+c.hash+' .','dim');}
+          if(t.step===1)L('▸ Test · chạy bộ test tích hợp','ok');
+          if(t.step===2)L('▸ Deploy · rolling update '+s.name+' → '+r.envName,'ok');
+          if(t.step===3)L('▸ Health check · GET /healthz','ok');}
+        if(t.step===3&&s.flaky&&t.mode==='deploy'&&t.p>=50){L('[health] GET /healthz → 503 (3/3 lần thất bại)','err');
+          if(r.autoRb){t.status='rollingback';t.p=0;L('Tự động rollback về '+(t.prev?s.commits[t.prev.idx].hash:'trạng thái trước'),'warn');}else{t.status='failed';L('Deploy thất bại. Bản mới không phục vụ được; cần xử lý thủ công.','err');}
+          return;}
+        t.p+=16+((t.ticks++*7+hstr(s.name))%11);
+        if(t.p>=100){var done=['build xong · image 184 MB','148 test passed, 0 failed','2/2 instance đã nhận bản mới','200 OK sau 3 lần thử · ổn định'];L('  ✓ '+done[t.step],'dim');t.step++;t.p=0;if(t.step>=4){t.status='success';L('✓ '+s.name+' đang chạy '+c.hash+' ở '+r.envName,'ok');}}
+      }else if(t.status==='rollingback'){t.p+=34;if(t.p>=100){t.status='rolledback';L('✓ Rollback hoàn tất. '+s.name+' phục vụ lại bản trước.','warn');}}
+    });
+    var term=['success','failed','rolledback','cancelled'];
+    if(r.targets.every(function(t){return term.indexOf(t.status)>=0;})){r.done=true;this.setState({run:r});this.finalize(r);return;}
+    this.setState({run:r});}
+  cancelRun(){var r=clone(this.state.run);if(!r||r.done)return;r.targets.forEach(function(t){if(t.status==='running'||t.status==='rollingback')t.status='cancelled';});r.log.push({t:'--:--',x:'Người dùng đã hủy. Các service chưa xong được giữ nguyên bản đang chạy.',lv:'warn'});r.done=true;r.cancelled=true;this.setState({run:r});this.finalize(r);}
+
+  renderVals(){
+    var st=this.state,Cs=st.saved,Cd=st.draft;
+    var v=Object.assign({},this.navVals(),this.ovVals(Cs),this.svVals(Cs),this.dlgVals(Cs),this.runVals(),this.cfgVals(Cd),this.prevVals());
+    v.isOverview=st.view==='overview';v.isService=st.view==='service';v.isRun=st.view==='run';v.isConfig=st.view==='config';
+    ['rows','visEnvs','summary','envCards','items','envTabs','logLines','vars','svMap','svTabs','dlgEnvs','dlgTargets','dlgReview','runTargets','runLog','envList','mxRows','mxEnvs','ruleList','pmRows','pmEnvs','histList','dangerList','pvChanges','pvAutos','diffEnvs','diffCommits','diffFiles','drawerLog','cfgNav'].forEach(function(k){if(v[k]===undefined)v[k]=[];});
+    ['projDD','envDD','brDD','mxDD'].forEach(function(k){if(!v[k])v[k]={current:'',opts:[]};});
+    if(!v.sv)v.sv={name:'',project:'',repo:''};
+    return v;}
+
+  navVals(){var st=this.state,me=this;var items=[['envs','Môi trường'],['matrix','Ma trận nhánh'],['rules','Quy tắc nhánh'],['perms','Phân quyền'],['history','Lịch sử, import, export'],['danger','Khu vực nguy hiểm']];
+    var dirty=cfgDiff(st.saved,st.draft).length>0;
+    var live=st.run&&!st.run.done;
+    return {navOv:st.view==='overview'?'on':'',navRun:st.view==='run'?'on':'',runActive:!!live,cfgDirty:dirty,role:st.role,
+      goOverview:function(){me.setState({view:'overview',drawer:null});},goRun:function(){me.setState({view:'run'});},
+      setRole:function(e){me.setState({role:e.target.value});},
+      cfgNav:items.map(function(i){return {label:i[1],cls:(st.view==='config'&&st.cfgTab===i[0])?'on':'',go:function(){me.setState({view:'config',cfgTab:i[0],drawer:null});}};})};}
+
+  ovVals(C){var st=this.state,me=this,F=st.filters,S=this.S,D=st.deploys;
+    var visEnvs=F.env==='all'?C.envs:C.envs.filter(function(e){return e.id===F.env;});
+    var q=F.q.trim().toLowerCase();
+    var info=S.map(function(s){var cells=visEnvs.map(function(e){var d=(D[s.id]||{})[e.id];var b=behindN(s,d,resolve(C,s,e.id));if(!d)return {has:false,none:true,st:null,b:0};var c=s.commits[d.idx];
+        return {has:true,none:false,hash:c.hash,msg:c.msg,cls:d.status,label:d.status,time:ago(d.at),behind:b>0,behindText:'còn '+b+' commit chưa deploy',st:d.status,b:b};});
+      var all=C.envs.map(function(e){var d=(D[s.id]||{})[e.id];return d?{st:d.status,b:behindN(s,d,resolve(C,s,e.id))}:null;}).filter(Boolean);
+      var nf=all.filter(function(x){return x.st==='failed';}).length,nd=all.filter(function(x){return x.st==='deploying';}).length,ng=all.filter(function(x){return x.st==='degraded';}).length,nb=all.reduce(function(a,x){return a+x.b;},0);
+      return {s:s,cells:cells,nf:nf,nd:nd,ng:ng,nb:nb,score:nf*1000+nd*500+ng*300+Math.min(nb,99),warn:svcWarn(C,s)};});
+    var pass=info.filter(function(x){var s=x.s;if(F.project!=='all'&&s.project!==F.project)return false;
+      if(q&&s.name.toLowerCase().indexOf(q)<0&&!x.cells.some(function(c){return c.has&&c.msg.toLowerCase().indexOf(q)>=0;}))return false;
+      if(F.status!=='all')return x.cells.some(function(c){return F.status==='behind'?c.b>0:c.st===F.status;});return true;});
+    var groups=PROJECTS.map(function(p){return {p:p,items:pass.filter(function(x){return x.s.project===p;}).sort(function(a,b){return b.score-a.score||a.s.name.localeCompare(b.s.name);})};}).filter(function(g){return g.items.length;})
+      .sort(function(a,b){return Math.max.apply(null,b.items.map(function(x){return x.score;}))-Math.max.apply(null,a.items.map(function(x){return x.score;}));});
+    var rows=[];
+    groups.forEach(function(g){var open=!st.collapsed[g.p];var attn=g.items.filter(function(x){return x.score>0;}).length;
+      rows.push({isGroup:true,isSvc:false,name:g.p,count:g.items.length,open:open,icon:open?'▾':'▸',attn:attn>0,attnText:attn+' cần chú ý',toggle:function(){var c=Object.assign({},st.collapsed);c[g.p]=!c[g.p];me.setState({collapsed:c});}});
+      if(open)g.items.forEach(function(x){var s=x.s;rows.push({isGroup:false,isSvc:true,name:s.name,type:s.type,sel:!!st.selected[s.id],warn:x.warn.length>0,warnText:x.warn.join('; '),cells:x.cells,
+        onSel:function(){var c=Object.assign({},st.selected);c[s.id]=!c[s.id];me.setState({selected:c});},
+        onOpen:function(){me.setState({view:'service',svcId:s.id,svcTab:'deployments',drawer:null,tabEnv:null,commitBranch:'all'});},
+        onDeploy:function(){me.openDialog('deploy',[s.id]);}});});});
+    var vis=pass.map(function(x){return x.s.id;});var selIds=Object.keys(st.selected).filter(function(k){return st.selected[k];});
+    var cnt=function(f){return info.filter(f).length;};
+    var sm=function(key,label,n,cls){return {label:label,n:n,cls:(n&&cls?cls:'')+(F.status===key?' on':''),pick:function(){me.setF({status:key});}};};
+    var summary=[sm('all','tất cả service',S.length,''),sm('failed','service lỗi',cnt(function(x){return x.nf;}),'bad'),sm('deploying','đang deploy',cnt(function(x){return x.nd;}),'run'),sm('degraded','suy giảm',cnt(function(x){return x.ng;}),'warn'),sm('behind','lệch phiên bản',cnt(function(x){return x.nb;}),'warn')];
+    var projOpts=[{v:'all',l:'Tất cả dự án'}].concat(PROJECTS.map(function(p){return {v:p,l:p};}));
+    var envOpts=[{v:'all',l:'Tất cả môi trường'}].concat(C.envs.map(function(e){return {v:e.id,l:e.name};}));
+    var dd=function(opts,cur,key){return {current:(opts.filter(function(o){return o.v===cur;})[0]||opts[0]).l,opts:opts.map(function(o){return {l:o.l,cls:o.v===cur?'on':'',pick:function(e){closeDd(e);var p={};p[key]=o.v;me.setF(p);}};})};};
+    return {ovSub:S.length+' service · '+PROJECTS.length+' dự án · '+C.envs.length+' môi trường. Service lỗi, đang deploy và lệch phiên bản nằm trên cùng.',summary:summary,
+      projDD:dd(projOpts,F.project,'project'),envDD:dd(envOpts,F.env,'env'),fStatus:F.status,fQ:F.q,
+      setStatus:function(e){me.setF({status:e.target.value});},setQ:function(e){me.setF({q:e.target.value});},
+      visEnvs:visEnvs.map(function(e){return {name:e.name,color:e.color,prot:e.protect.approval||e.protect.typeName||e.protect.restrict||e.protect.freeze.on};}),
+      cols:'36px 230px repeat('+visEnvs.length+', minmax(210px, 1fr)) 112px',minw:36+230+visEnvs.length*210+112,rows:rows,noRows:rows.length===0,
+      allSel:vis.length>0&&vis.every(function(id){return st.selected[id];}),
+      toggleAll:function(){var all=vis.length>0&&vis.every(function(id){return st.selected[id];});var c=Object.assign({},st.selected);vis.forEach(function(id){c[id]=!all;});me.setState({selected:c});},
+      hasSel:selIds.length>0,selCount:selIds.length,clearSel:function(){me.setState({selected:{}});},
+      selDeploy:function(){me.openDialog('deploy',selIds);},selRollback:function(){me.openDialog('rollback',selIds);}};}
+
+  svVals(C){var st=this.state,me=this;if(st.view!=='service')return {};var s=this.svc(st.svcId);if(!s)return {};
+    var dep=st.deploys[s.id]||{},evs=st.events[s.id]||[];
+    var envName=function(id){var e=C.envs.filter(function(x){return x.id===id;})[0];return e?e.name:id;};
+    var envCol=function(id){var e=C.envs.filter(function(x){return x.id===id;})[0];return e?e.color:'#888';};
+    var envCards=C.envs.map(function(e){var d=dep[e.id];var base={name:e.name,color:e.color,has:!!d,none:!d,onDeploy:function(){me.openDialog('deploy',[s.id],{envId:e.id});},onRollback:function(){me.openDialog('rollback',[s.id],{envId:e.id});}};
+      if(!d)return base;var c=s.commits[d.idx],rule=resolve(C,s,e.id),b=behindN(s,d,rule),sp=spark(s,e.id,d.status);
+      return Object.assign(base,{hash:c.hash,msg:c.msg,author:c.author,time:ago(d.at),cls:d.status,label:d.status,behind:b>0,behindText:'còn '+b+' commit chưa deploy',branchTxt:rule.mode==='none'?'chưa ánh xạ':MODE_L[rule.mode]+' · '+rule.value,errPts:sp.err,latPts:sp.lat,errTxt:sp.errTxt,latTxt:sp.latTxt,sepX:sp.sepX});});
+    var tabs=[['deployments','Deployments'],['commits','Commits'],['logs','Logs'],['vars','Biến môi trường'],['settings','Cài đặt']];
+    var tab=st.svcTab,tabIsC=tab==='commits';
+    var tenv=st.tabEnv&&C.envs.some(function(e){return e.id===st.tabEnv;})?st.tabEnv:(C.envs[0]?C.envs[0].id:null);
+    var items=[];
+    if(tab==='deployments'||tabIsC){s.commits.forEach(function(c,i){if(tabIsC&&st.commitBranch!=='all'&&c.branch!==st.commitBranch)return;
+      var run=C.envs.filter(function(e){return dep[e.id]&&dep[e.id].idx===i;}).map(function(e){return {name:e.name,color:e.color};});
+      var canRb=C.envs.some(function(e){return dep[e.id]&&dep[e.id].idx<i;});
+      items.push({isCommit:true,isEvent:false,hash:c.hash,msg:c.msg,author:c.author,branch:c.branch,time:ago(c.time),build:c.build,mig:c.mig,running:run,rowCls:(st.drawer&&st.drawer.type==='diff'&&st.drawer.idx===i)?'sel':'',noDeploy:c.build==='failed',noRb:!canRb||c.build==='failed',
+        onDeploy:function(){me.openDialog('deploy',[s.id],{toIdx:i});},onRb:function(){me.openDialog('rollback',[s.id],{toIdx:i});},
+        onCmp:function(){var f=C.envs.filter(function(e){return dep[e.id];})[0];me.setState({drawer:{type:'diff',idx:i,envId:f?f.id:null}});}});
+      if(tab==='deployments')evs.filter(function(ev){return ev.idx===i;}).forEach(function(ev){var SL={superseded:'đã thay thế',healthy:'healthy',failed:'failed',degraded:'degraded',deploying:'deploying',success:'thành công',rolledback:'đã tự rollback',cancelled:'đã hủy'};
+        var cls={superseded:'',healthy:'healthy',success:'healthy',failed:'failed',degraded:'degraded',deploying:'deploying',rolledback:'degraded',cancelled:''}[ev.status];
+        items.push({isCommit:false,isEvent:true,envName:envName(ev.envId),color:envCol(ev.envId),kindLabel:ev.kind==='rollback'?'Rollback':'Deploy',kindCls:ev.kind==='rollback'?'rbk':'run',by:ev.by,time:ago(ev.at),stLabel:SL[ev.status]||ev.status,stCls:cls,
+          onLog:function(){me.setState({drawer:{type:'log',evId:ev.id,envId:ev.envId,idx:ev.idx,status:ev.status}});}});});});}
+    var branches=[];s.commits.forEach(function(c){if(branches.indexOf(c.branch)<0)branches.push(c.branch);});
+    var brOpts=[{v:'all',l:'Tất cả nhánh'}].concat(branches.map(function(b){return {v:b,l:b};}));
+    var brDD={current:(brOpts.filter(function(o){return o.v===st.commitBranch;})[0]||brOpts[0]).l,opts:brOpts.map(function(o){return {l:o.l,cls:o.v===st.commitBranch?'on':'',pick:function(e){closeDd(e);me.setState({commitBranch:o.v});}};})};
+    var envTabs=C.envs.map(function(e){return {name:e.name,color:e.color,cls:e.id===tenv?'on':'',pick:function(){me.setState({tabEnv:e.id});}};});
+    var dTenv=dep[tenv];
+    var logLines=(tab==='logs'&&tenv)?genLog(s,tenv,dTenv?dTenv.status:'healthy',1):[];
+    var VARS=[['DATABASE_URL',true,'postgres://svc:••••@db.internal:5432/app'],['PAYMENT_GATEWAY_KEY',true,'pk_live_••••••••••••'],['LOG_LEVEL',false,'info'],['REQUEST_TIMEOUT_MS',false,'3000'],['FEATURE_REFUND_V2',false,'true']];
+    var vars=VARS.map(function(x){var key=tenv+'|'+x[0],on=!!st.reveal[key];var shown=x[1]&&!on?'••••••••••••':(x[0]==='LOG_LEVEL'&&C.envs[0]&&tenv===C.envs[0].id?'debug':x[2]);if(x[1]&&on)shown=x[2].replace(/••••/g,'a1b2');
+      return {k:x[0],secret:x[1],shown:shown,btn:x[1]?(on?'ẩn':'hiện'):'',toggle:function(){var r=Object.assign({},st.reveal);r[key]=!r[key];me.setState({reveal:r});}};});
+    var svMap=C.envs.map(function(e){var r=resolve(C,s,e.id);return {env:e.name,color:e.color,rule:r.mode==='none'?'Chưa cấu hình':MODE_L[r.mode]+' · '+r.value,src:r.over?'ghi đè riêng':'kế thừa nhóm'};});
+    var used=this.dependents(s.id).map(function(x){return x.name;});
+    var out={sv:{name:s.name,project:s.project,repo:s.repo},envCards:envCards,
+      svTabs:tabs.map(function(t){return {label:t[1],cls:t[0]===tab?'on':'',sel:t[0]===tab,go:function(){me.setState({svcTab:t[0],drawer:null});}};}),
+      tabTimeline:tab==='deployments'||tabIsC,tabIsCommits:tabIsC,tabLogs:tab==='logs',tabVars:tab==='vars',tabSettings:tab==='settings',
+      items:items,brDD:brDD,envTabs:envTabs,tabEnvName:tenv?envName(tenv):'',logLines:logLines,vars:vars,svMap:svMap,
+      svUses:s.uses.length?s.uses.join(', '):'không có',svUsedBy:used.length?used.join(', '):'không có',
+      goMatrix:function(){me.setState({view:'config',cfgTab:'matrix'});},
+      svDeploy:function(){me.openDialog('deploy',[s.id]);},svRollback:function(){me.openDialog('rollback',[s.id]);},
+      closeDrawer:function(){me.setState({drawer:null});},drawerOpen:false,drawerIsDiff:false,drawerIsLog:false};
+    var dr=st.drawer;
+    if(dr&&dr.type==='diff'){var denv=dr.envId,dd=dep[denv];var c=s.commits[dr.idx];var ri=dd?dd.idx:null;var txt;
+      out.drawerOpen=true;out.drawerIsDiff=true;out.drawerTitle='So sánh '+c.hash;out.drawerSub=c.msg;
+      out.diffEnvs=C.envs.filter(function(e){return dep[e.id];}).map(function(e){return {name:e.name,color:e.color,hash:s.commits[dep[e.id].idx].hash,cls:e.id===denv?'on':'',pick:function(){me.setState({drawer:Object.assign({},dr,{envId:e.id})});}};});
+      var list=[];if(ri==null){txt='Chưa có bản đang chạy để so sánh.';}else if(ri===dr.idx){txt='Commit này đang chạy ở '+envName(denv)+'. Không có khác biệt.';}
+      else if(dr.idx<ri){list=s.commits.slice(dr.idx,ri);txt=list.length+' commit MỚI hơn bản đang chạy ở '+envName(denv)+' sẽ được đưa lên.';}
+      else{list=s.commits.slice(ri,dr.idx);txt=list.length+' commit đang chạy ở '+envName(denv)+' sẽ bị gỡ nếu về commit này.';}
+      out.diffSummary=txt;out.diffMig=list.some(function(x){return x.mig;});out.diffCommits=list.map(function(x){return {hash:x.hash,msg:x.msg};});out.diffCommitCount=list.length;
+      var fl=FILES[s.type]||FILES.api,nf=Math.min(fl.length,list.length?Math.max(2,Math.min(fl.length,list.length+1)):0);
+      out.diffFiles=fl.slice(0,nf).map(function(p){var h=hstr(p+c.hash);return {path:p,add:5+h%90,del:1+(h>>3)%35};});out.diffFileCount=nf;}
+    if(dr&&dr.type==='log'){var c2=s.commits[dr.idx];out.drawerOpen=true;out.drawerIsLog=true;out.drawerTitle='Log deployment · '+envName(dr.envId);out.drawerSub=c2.hash+' · '+c2.msg;
+      var base=[{t:'14:02',x:'$ git checkout '+c2.hash,lv:'dim'},{t:'14:02',x:'▸ Build · docker build -t '+s.name+':'+c2.hash,lv:'ok'},{t:'14:04',x:'  ✓ build xong · image 184 MB',lv:'dim'},{t:'14:04',x:'▸ Test · 148 test passed, 0 failed',lv:'ok'},{t:'14:06',x:'▸ Deploy · rolling update 2/2 instance',lv:'ok'},{t:'14:07',x:'▸ Health check · GET /healthz → '+(dr.status==='failed'?'503':'200 OK'),lv:dr.status==='failed'?'err':'ok'}];
+      if(dr.status==='rolledback')base.push({t:'14:08',x:'Tự động rollback về bản trước',lv:'warn'});
+      out.drawerLog=base.concat(genLog(s,dr.envId,'healthy',7).slice(0,6));}
+    return out;}
+
+  dlgVals(C){var st=this.state,me=this,dl=st.dialog;if(!dl)return {dialogOpen:false};
+    var env=C.envs.filter(function(e){return e.id===dl.envId;})[0]||C.envs[0],P=env.protect,rb=dl.mode==='rollback',multi=dl.targets.length>1;
+    var blocksAll=false;
+    var targets=dl.targets.map(function(t){var s=me.svc(t.svcId),d=(st.deploys[s.id]||{})[env.id],to=s.commits[t.toIdx];
+      var rIdx=d?d.idx:null;var ch=[];
+      if(rIdx==null){ch=s.commits.slice(t.toIdx,t.toIdx+3).map(function(c){return {c:c,dir:'mới'};});}
+      else if(t.toIdx<rIdx){ch=s.commits.slice(t.toIdx,rIdx).map(function(c){return {c:c,dir:'lên'};});}
+      else if(t.toIdx>rIdx){ch=s.commits.slice(rIdx,t.toIdx).map(function(c){return {c:c,dir:'gỡ'};});}
+      var mig=ch.some(function(x){return x.c.mig;}),nm=ch.filter(function(x){return x.c.mig;}).length;
+      var deps=me.dependents(s.id);
+      var block='';if(rb&&rIdx==null)block='Chưa có bản đang chạy ở '+env.name+' để rollback.';else if(rIdx===t.toIdx)block='Commit này đang chạy ở '+env.name+'.';else if(to.build==='failed')block='Build của commit đích bị lỗi, không thể deploy.';else if(rb&&rIdx!=null&&t.toIdx<rIdx)block='Commit đích mới hơn bản đang chạy. Rollback phải về commit cũ hơn.';
+      if(block)blocksAll=true;
+      var opts=s.commits.map(function(c,i){return {hash:c.hash,msg:c.msg,branch:c.branch,note:(c.build==='failed'?' · build lỗi':'')+(rIdx===i?' · đang chạy':''),cls:i===t.toIdx?'on':'',pick:function(e){closeDd(e);me.dlgSetTo(s.id,i);}};});
+      var rule=resolve(C,s,env.id),head=headIdx(s,rule);var sugs=[];
+      if(rb){var p1=Math.min(15,(rIdx||0)+1);sugs.push({label:'Bản liền trước ('+s.commits[p1].hash+')',pick:function(){me.dlgSetTo(s.id,p1);}});var p2=Math.min(15,(rIdx||0)+3);sugs.push({label:'Lùi 3 bản ('+s.commits[p2].hash+')',pick:function(){me.dlgSetTo(s.id,p2);}});}
+      else{if(head>=0)sugs.push({label:'HEAD '+rule.value+' ('+s.commits[head].hash+')',pick:function(){me.dlgSetTo(s.id,head);}});sugs.push({label:'Commit mới nhất mọi nhánh ('+s.commits[0].hash+')',pick:function(){me.dlgSetTo(s.id,0);}});}
+      if(!sugs.length)sugs.push({label:'Chưa có quy tắc nhánh cho '+env.name,pick:function(){}});
+      return {name:s.name,project:s.project,mig:mig,deps:deps.length>0,depCount:deps.length,depNames:deps.map(function(x){return x.name;}).join(', '),
+        fromHash:d?s.commits[d.idx].hash:'—',fromMsg:d?s.commits[d.idx].msg:'chưa deploy',toHash:to.hash,toMsg:to.msg,toBorder:block?'#E3B4B0':'#E6E9EE',options:opts,sugs:sugs,
+        hasBlock:!!block,blockText:block,warnBack:!rb&&rIdx!=null&&t.toIdx>rIdx&&!block,open:!multi,
+        changeTitle:rIdx==null?'Triển khai lần đầu · '+ch.length+' commit gần nhất':(t.toIdx<rIdx?ch.length+' commit sẽ được đưa lên':ch.length+' commit sẽ bị gỡ'),
+        changes:ch.map(function(x){return {hash:x.c.hash,msg:x.c.msg,mig:x.c.mig,dir:x.dir==='gỡ'?'gỡ':'lên',cls:x.dir==='gỡ'?'rbk':'run'};}),
+        migTitle:rb?'Rollback đi qua '+nm+' migration database':'Có '+nm+' migration database trong khoảng thay đổi',
+        migText:rb?'Migration không tự đảo ngược. Hãy xác nhận schema cũ vẫn tương thích với code của bản đích.':'Migration chạy trước khi nhận traffic. Kiểm tra có thể rollback code mà không rollback schema hay không.',
+        _s:s,_d:d,_to:to,_block:block};});
+    var permOk=this.can(C,env.id,dl.mode);var frozen=frozenNow(P.freeze);
+    var glob='';if(!permOk)glob='Vai trò '+st.role+' không có quyền '+(rb?'rollback':'deploy')+' ở '+env.name+'. Đổi vai trò ở thanh bên hoặc nhờ người có quyền.';else if(frozen)glob=env.name+' đang trong khung giờ khóa deploy ('+P.freeze.from+' → '+P.freeze.to+').';
+    var needType=P.typeName,expect=multi?env.name:dl.targets.length?this.svc(dl.targets[0].svcId).name:'';
+    var typedOk=!needType||dl.typed.trim()===expect;
+    var needAppr=P.approval;
+    var anyBlock=blocksAll||!!glob||dl.targets.length===0;
+    var label,off,cls=rb?'rb':'pri',fn;
+    var n=dl.targets.length,what=multi?n+' service':this.svc(dl.targets[0].svcId).name;
+    if(anyBlock){label='Không thể tiếp tục';off=true;fn=function(){};}
+    else if(needAppr&&dl.appr==='none'){label='Gửi yêu cầu phê duyệt';off=!dl.approver||!typedOk;fn=function(){me.dlgPatch({appr:'pending'});};}
+    else if(needAppr&&dl.appr==='pending'){label='Đang chờ phê duyệt…';off=true;fn=function(){};}
+    else{label=(rb?'Rollback ':'Deploy ')+what+' '+(rb?'về':'lên')+' '+env.name;off=!typedOk;fn=function(){me.startRun();};}
+    var kind=rb?'Rollback':'Deploy';
+    var frInfo=P.freeze.on&&!frozen?'Khung giờ khóa deploy của '+env.name+': '+P.freeze.from+' → '+P.freeze.to+'. Hiện chưa bị khóa.':'';
+    return {dialogOpen:true,dlgModeCls:rb?'rollback':'deploy',dlgKind:kind,dlgTitle:kind+' '+(multi?n+' service':what)+' '+(rb?'về':'lên')+' '+env.name,
+      dlgSub:multi?'Mỗi service giữ commit đích riêng. Rà soát bảng dưới trước khi xác nhận.':this.svc(dl.targets[0].svcId).project+' · '+this.svc(dl.targets[0].svcId).repo,
+      closeDialog:function(){me.setState({dialog:null});},envName:env.name,
+      dlgEnvs:C.envs.map(function(e){return {name:e.name,color:e.color,cls:e.id===env.id?'on':'',prot:e.protect.approval||e.protect.typeName||e.protect.restrict||e.protect.freeze.on,pick:function(){me.dlgEnv(e.id);}};}),
+      dlgEnvDesc:env.desc||'',dlgMulti:multi,
+      dlgReview:targets.map(function(t){return {name:t.name,from:t.fromHash,to:t.toHash,msg:t.toMsg,state:t._block?'cần xử lý':(t.mig?'có migration':'sẵn sàng'),cls:t._block?'bad':(t.mig?'warn':'ok')};}),
+      dlgTargets:targets,dlgGlobalBlock:!!glob,dlgGlobalBlockText:glob,dlgFreezeInfo:frInfo,
+      dlgNeedType:needType&&!anyBlock,typePrompt:multi?'Gõ tên môi trường để xác nhận '+n+' service':'Gõ tên service để xác nhận',typeExpect:expect,typed:dl.typed,setTyped:function(e){me.dlgPatch({typed:e.target.value});},
+      dlgNeedApproval:needAppr&&!anyBlock,approver:dl.approver,setApprover:function(e){me.dlgPatch({approver:e.target.value,appr:'none'});},
+      apprPending:dl.appr==='pending',apprCls:dl.appr==='approved'?'info':'warn',
+      apprText:dl.appr==='approved'?'Đã được '+dl.approver+' phê duyệt.':dl.appr==='pending'?'Đang chờ '+dl.approver+' phê duyệt…':env.name+' yêu cầu một người phê duyệt trước khi chạy.',
+      simApprove:function(){me.dlgPatch({appr:'approved'});},
+      dlgAutoRb:dl.autoRb,toggleDlgRb:function(){me.dlgPatch({autoRb:!dl.autoRb});},
+      confirmLabel:label,confirmOff:off,confirmCls:cls,confirmAction:fn};}
+
+  runVals(){var st=this.state,me=this,r=st.run;if(!r)return {runLive:false,runDone:false};
+    var names={success:'Thành công',failed:'Thất bại',rolledback:'Đã tự rollback',cancelled:'Đã hủy',running:'Đang chạy',rollingback:'Đang rollback'};
+    var chips={success:'ok',failed:'bad',rolledback:'warn',cancelled:'',running:'run',rollingback:'warn'};
+    var targets=r.targets.map(function(t){var s=me.svc(t.svcId);
+      var segs=STEPS.map(function(lb,i){var cls='',w=0;
+        if(t.status==='success'){cls='done';w=100;}
+        else if(i<t.step){cls='done';w=100;}
+        else if(i===t.step&&t.status==='running'){cls='active';w=Math.min(100,t.p);}
+        else if(i===t.step&&(t.status==='failed'||t.status==='rollingback'||t.status==='rolledback')){cls='bad';w=Math.max(40,Math.min(100,t.p));}
+        else if(i===t.step&&t.status==='cancelled'){cls='';w=Math.min(100,t.p);}
+        return {label:lb,cls:cls,w:Math.round(w)};});
+      return {name:s.name,fromHash:t.from!=null?s.commits[t.from].hash:'—',toHash:s.commits[t.to].hash,statusText:names[t.status],chipCls:chips[t.status],segs:segs};});
+    var ok=r.targets.filter(function(t){return t.status==='success';}).length,bad=r.targets.filter(function(t){return t.status==='failed';}).length,rbk=r.targets.filter(function(t){return t.status==='rolledback';}).length;
+    var res=r.cancelled?{c:'warn',t:'Đã hủy deploy',x:'Service chưa hoàn tất được giữ nguyên bản đang chạy.'}:bad?{c:'bad',t:bad+' service thất bại',x:'Bản mới không qua health check và không được tự rollback. Cần xử lý thủ công.'}:rbk?{c:'warn',t:rbk+' service đã tự động rollback',x:'Health check thất bại, hệ thống đã đưa service về bản trước. '+ok+' service còn lại thành công.'}:{c:'info',t:'Hoàn tất',x:ok+' service đang chạy bản mới ở '+r.envName+'.'};
+    var one=r.targets.length===1?this.svc(r.targets[0].svcId).name:r.targets.length+' service';
+    return {runTitle:(r.mode==='rollback'?'Rollback ':'Deploy ')+one+' '+(r.mode==='rollback'?'về ':'lên ')+r.envName,runSub:r.done?'Đã kết thúc':'Build → test → deploy → health check',
+      runLive:!r.done,runDone:r.done,runAutoRb:r.autoRb,toggleRunRb:function(){var n=clone(st.run);n.autoRb=!n.autoRb;me.setState({run:n});},cancelRun:function(){me.cancelRun();},
+      runTargets:targets,runLog:r.log,runLogChip:r.done?'':'run',runLogLabel:r.done?'đã dừng':'trực tiếp',runResCls:res.c,runResTitle:res.t,runResText:res.x};}
+
+  cfgVals(C){var st=this.state,me=this;var tab=st.cfgTab;var out={cfgEnvs:tab==='envs',cfgMatrix:tab==='matrix',cfgRules:tab==='rules',cfgPerms:tab==='perms',cfgHistory:tab==='history',cfgDanger:tab==='danger'};
+    var diff=cfgDiff(st.saved,st.draft),dirty=diff.length>0;
+    Object.assign(out,{dirtyText:dirty?diff.length+' thay đổi chưa lưu':'Không có thay đổi chưa lưu',dirtyDetail:diff.slice(0,3).join(' · ')+(diff.length>3?' · …':''),saveCls:dirty?'':'clean',cleanOff:!dirty,
+      discardDraft:function(){me.setState({draft:clone(st.saved),confirmDel:null});},openPreview:function(){me.setState({preview:true});}});
+    if(st.view!=='config')return out;
+    var envs=C.envs;
+    out.envList=envs.map(function(e,i){var P=e.protect,badges=[];if(P.approval)badges.push('Cần phê duyệt');if(P.typeName)badges.push('Gõ tên service');if(P.restrict)badges.push('Giới hạn người deploy');if(P.freeze.on)badges.push('Khóa '+P.freeze.from+' → '+P.freeze.to);
+      var setP=function(k,val){me.mut(function(d){d.envs.filter(function(x){return x.id===e.id;})[0].protect[k]=val;});};
+      var setF=function(k,val){me.mut(function(d){d.envs.filter(function(x){return x.id===e.id;})[0].protect.freeze[k]=val;});};
+      var setE=function(k,val){me.mut(function(d){d.envs.filter(function(x){return x.id===e.id;})[0][k]=val;});};
+      var move=function(dlt){me.mut(function(d){var j=i+dlt,a=d.envs[i];d.envs[i]=d.envs[j];d.envs[j]=a;});};
+      var open=st.expandEnv===e.id;
+      return {name:e.name,desc:e.desc,color:e.color,first:i===0,last:i===envs.length-1,up:function(){move(-1);},down:function(){move(1);},
+        setName:function(ev){setE('name',ev.target.value);},setDesc:function(ev){setE('desc',ev.target.value);},
+        swatches:PALETTE.map(function(c){return {c:c,cls:c===e.color?'on':'',pick:function(){setE('color',c);}};}),
+        open:open,arrow:open?'▾':'▸',toggle:function(){me.setState({expandEnv:open?null:e.id});},badges:badges,noBadges:badges.length===0,
+        pApproval:P.approval,pType:P.typeName,pRestrict:P.restrict,pFreeze:P.freeze.on,fFrom:P.freeze.from,fTo:P.freeze.to,
+        setApproval:function(ev){setP('approval',ev.target.checked);},setType:function(ev){setP('typeName',ev.target.checked);},setRestrict:function(ev){setP('restrict',ev.target.checked);},setFreeze:function(ev){setF('on',ev.target.checked);},setFrom:function(ev){setF('from',ev.target.value);},setTo:function(ev){setF('to',ev.target.value);},
+        confirmDel:st.confirmDel===e.id,askDel:function(){me.setState({confirmDel:e.id});},cancelDel:function(){me.setState({confirmDel:null});},
+        doDel:function(){me.mut(function(d){d.envs=d.envs.filter(function(x){return x.id!==e.id;});delete d.perms[e.id];Object.keys(d.groupDefaults).forEach(function(p){delete d.groupDefaults[p][e.id];});Object.keys(d.matrix).forEach(function(k){delete d.matrix[k][e.id];});d.rules.forEach(function(r){if(r.envId===e.id)r.envId=null;});});me.setState({confirmDel:null});}};});
+    out.newEnvName=st.newEnvName;out.newEnvOff=!st.newEnvName.trim();out.setNewEnv=function(ev){me.setState({newEnvName:ev.target.value});};
+    out.addEnv=function(){var nm=st.newEnvName.trim();if(!nm)return;me.mut(function(d){var base=nm.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'env',id=base,k=2;while(d.envs.some(function(x){return x.id===id;}))id=base+'-'+(k++);
+      d.envs.push({id:id,name:nm,color:PALETTE[d.envs.length%PALETTE.length],desc:'',protect:{approval:false,typeName:false,restrict:false,freeze:{on:false,from:'T6 16:00',to:'T2 08:00'}}});d.perms[id]={Developer:1,QA:1,'Tech lead':2,DevOps:2};});me.setState({newEnvName:''});};
+    var mxP=st.mxProject;var popts=[{v:'all',l:'Tất cả dự án'}].concat(PROJECTS.map(function(p){return {v:p,l:p};}));
+    out.mxDD={current:(popts.filter(function(o){return o.v===mxP;})[0]||popts[0]).l,opts:popts.map(function(o){return {l:o.l,cls:o.v===mxP?'on':'',pick:function(e){closeDd(e);me.setState({mxProject:o.v});}};})};
+    out.mxEnvs=envs.map(function(e){return {name:e.name,color:e.color};});out.mxCols='220px repeat('+envs.length+', minmax(190px, 1fr)) 220px';out.mxMin=220+envs.length*190+220;
+    var cellVm=function(r,label,svcId,project){var patch=function(p){me.mut(function(d){if(svcId){d.matrix[svcId]=d.matrix[svcId]||{};var base=d.matrix[svcId][r.envId]||{mode:r.mode,value:r.value};d.matrix[svcId][r.envId]=Object.assign({mode:base.mode,value:base.value},p);}else{d.groupDefaults[project]=d.groupDefaults[project]||{};var b=d.groupDefaults[project][r.envId]||{mode:'manual',value:''};d.groupDefaults[project][r.envId]=Object.assign({mode:b.mode,value:b.value},p);}});};
+      var none=r.mode==='none';return {mode:r.mode,value:r.value,hasVal:!none,ph:r.mode==='pattern'?'release/*':'main',cls:none?'none':(svcId?(r.over?'ovr':'inh'):''),over:!!svcId&&r.over,inh:!!svcId&&!r.over,
+        setMode:function(ev){var m=ev.target.value;patch(m==='none'?{mode:m,value:''}:{mode:m});},setVal:function(ev){patch({value:ev.target.value});},reset:function(){me.mut(function(d){if(d.matrix[svcId]){delete d.matrix[svcId][r.envId];if(!Object.keys(d.matrix[svcId]).length)delete d.matrix[svcId];}});}};};
+    var mxRows=[];PROJECTS.forEach(function(p){if(mxP!=='all'&&mxP!==p)return;
+      mxRows.push({rowCls:'defr',name:'Mặc định nhóm',sub:p,warns:[],cells:envs.map(function(e){var g=(C.groupDefaults[p]||{})[e.id]||{mode:'none',value:''};return cellVm({envId:e.id,mode:g.mode,value:g.value,over:false},e.name,null,p);})});
+      me.S.filter(function(s){return s.project===p;}).forEach(function(s){mxRows.push({rowCls:'',name:s.name,sub:s.type,warns:svcWarn(C,s),cells:envs.map(function(e){var r=resolve(C,s,e.id);r.envId=e.id;return cellVm(r,e.name,s.id,p);})});});});
+    out.mxRows=mxRows;
+    var test=st.ruleTest.trim(),hitId=null;C.rules.forEach(function(r){if(hitId===null&&r.pattern&&globMatch(r.pattern,test))hitId=r.id;});
+    var envLabel=function(id){var e=envs.filter(function(x){return x.id===id;})[0];return e?e.name:'Môi trường tạm theo tên nhánh';};
+    out.ruleList=C.rules.map(function(r){var upd=function(p){me.mut(function(d){Object.assign(d.rules.filter(function(x){return x.id===r.id;})[0],p);});};
+      var tg=envs.map(function(e){return {l:e.name,cls:r.envId===e.id&&!r.ephemeral?'on':'',pick:function(ev){closeDd(ev);upd({envId:e.id,ephemeral:false});}};}).concat([{l:'Môi trường tạm theo tên nhánh',cls:r.ephemeral?'on':'',pick:function(ev){closeDd(ev);upd({envId:null,ephemeral:true});}}]);
+      return {pattern:r.pattern,targetLabel:r.ephemeral?'Môi trường tạm theo tên nhánh':envLabel(r.envId),targets:tg,eph:r.ephemeral,ttl:r.ttl,hit:hitId===r.id?'sel':'',isHit:hitId===r.id,
+        setPattern:function(ev){upd({pattern:ev.target.value});},setTtl:function(ev){upd({ttl:parseInt(ev.target.value,10)||1});},del:function(){me.mut(function(d){d.rules=d.rules.filter(function(x){return x.id!==r.id;});});}};});
+    out.addRule=function(){me.mut(function(d){d.rules.push({id:'r'+Math.random().toString(36).slice(2,6),pattern:'',envId:d.envs[0]?d.envs[0].id:null,ephemeral:false,ttl:7});});};
+    out.ruleTest=st.ruleTest;out.setRuleTest=function(ev){me.setState({ruleTest:ev.target.value});};
+    var hit=C.rules.filter(function(r){return r.id===hitId;})[0];
+    if(!test){out.testCls='info';out.testTitle='Chưa nhập tên nhánh';out.testText='Nhập tên nhánh để xem quy tắc nào khớp.';}
+    else if(!hit){out.testCls='warn';out.testTitle='Không khớp quy tắc chung nào';out.testText='Nhánh này chỉ được deploy nếu một service tự đặt quy tắc riêng trong ma trận.';}
+    else if(hit.ephemeral){out.testCls='info';out.testTitle='Khớp “'+hit.pattern+'” → môi trường tạm';var slug=test.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');out.testText='Sẽ tạo môi trường tạm “'+slug+'”, tự xóa sau '+hit.ttl+' ngày.';}
+    else{out.testCls='info';out.testTitle='Khớp “'+hit.pattern+'” → '+envLabel(hit.envId);out.testText='Quy tắc số '+(C.rules.indexOf(hit)+1)+' trong danh sách. Các quy tắc bên dưới bị bỏ qua.';}
+    out.pmEnvs=envs.map(function(e){return {name:e.name,color:e.color};});out.pmCols='180px repeat('+envs.length+', minmax(180px, 1fr))';out.pmMin=180+envs.length*180;
+    out.pmRows=ROLES.map(function(role){return {role:role,cells:envs.map(function(e){return {env:e.name,val:String(((C.perms[e.id]||{})[role])||0),set:function(ev){me.mut(function(d){d.perms[e.id]=d.perms[e.id]||{};d.perms[e.id][role]=parseInt(ev.target.value,10);});}};})};});
+    out.histList=st.history.map(function(h,i){return {summary:h.summary,by:h.by,at:h.at,current:i===0,canRestore:i>0,restore:function(){me.setState({draft:clone(h.snap)});}};});
+    out.fmtJson=st.exportFmt==='json'?'on':'';out.fmtYaml=st.exportFmt==='yaml'?'on':'';out.setJson=function(){me.setState({exportFmt:'json'});};out.setYaml=function(){me.setState({exportFmt:'yaml'});};
+    out.exportText=st.exportFmt==='json'?JSON.stringify(st.draft,null,2):toYaml(st.draft);
+    out.importText=st.importText;out.importErr=st.importErr;out.setImport=function(ev){me.setState({importText:ev.target.value});};
+    out.doImport=function(){try{var o=JSON.parse(st.importText);if(!o||!Array.isArray(o.envs)||!o.groupDefaults||!o.matrix||!o.perms||!Array.isArray(o.rules))throw new Error('Thiếu một trong các khóa: envs, groupDefaults, matrix, perms, rules');me.setState({draft:o,importErr:'',importText:''});}catch(x){me.setState({importErr:'Không nhập được: '+x.message});}};
+    var nOv=Object.keys(C.matrix).length,nEph=C.rules.filter(function(r){return r.ephemeral;}).length;
+    out.dangerList=[{title:'Xóa mọi ghi đè theo service',text:'Đưa '+nOv+' service có cấu hình riêng về mặc định của nhóm.',btn:'Xóa ghi đè',off:nOv===0,go:function(){me.mut(function(d){d.matrix={};});}},
+      {title:'Xóa quy tắc môi trường tạm',text:nEph+' quy tắc tạo môi trường tạm theo tên nhánh sẽ bị gỡ.',btn:'Gỡ quy tắc',off:nEph===0,go:function(){me.mut(function(d){d.rules=d.rules.filter(function(r){return !r.ephemeral;});});}},
+      {title:'Đưa toàn bộ bản nháp về bản đã lưu',text:'Mọi chỉnh sửa chưa lưu ở tất cả các tab sẽ mất.',btn:'Bỏ bản nháp',off:!dirty,go:function(){me.setState({draft:clone(st.saved)});}}];
+    return out;}
+
+  prevVals(){var st=this.state,me=this;if(!st.preview)return {previewOpen:false};
+    var A=st.saved,B=st.draft,S=this.S,D=st.deploys;var ids=A.envs.map(function(e){return e.id;}).concat(B.envs.map(function(e){return e.id;}));ids=ids.filter(function(x,i){return ids.indexOf(x)===i;});
+    var aff={},cells=0,autos=[];
+    S.forEach(function(s){ids.forEach(function(eid){var a=resolve(A,s,eid),b=resolve(B,s,eid);if(a.mode!==b.mode||a.value!==b.value){cells++;aff[s.id]=1;
+      var inB=B.envs.some(function(e){return e.id===eid;});
+      if(inB&&(b.mode==='auto'||b.mode==='pattern')){var h=headIdx(s,b),d=(D[s.id]||{})[eid];if(h>=0&&d&&d.idx!==h)autos.push({svc:s.name,env:B.envs.filter(function(e){return e.id===eid;})[0].name,hash:s.commits[h].hash,branch:s.commits[h].branch,from:s.commits[d.idx].hash});}}});});
+    var diff=cfgDiff(A,B);
+    return {previewOpen:true,pvServices:Object.keys(aff).length,pvCells:cells,pvAutoCount:autos.length,pvAutoCls:autos.length?'warn':'ok',pvChanges:diff.length?diff:['Không có thay đổi.'],pvHasAuto:autos.length>0,pvAutos:autos,
+      closePreview:function(){me.setState({preview:false});},
+      saveConfig:function(){var h=st.history.slice();h.unshift({id:'h'+Date.now(),at:'vừa xong',by:'Bạn',summary:diff.slice(0,2).join('; ')+(diff.length>2?' (+'+(diff.length-2)+' thay đổi)':''),snap:clone(B)});me.setState({saved:clone(B),history:h,preview:false});}};}
+}
+</script>
+</body>
+</html>
