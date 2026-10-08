@@ -44,7 +44,7 @@ test('chưa đăng nhập: trang, tệp giao diện và /healthz mở được; 
   const js = await b.call('GET', '/web/main.js');
   assert.equal(js.status, 200);
   assert.match(js.headers['content-type'], /javascript/);
-  assert.equal((await b.call('GET', '/web/views/service-card.js')).status, 200);
+  assert.equal((await b.call('GET', '/web/views/overview.js')).status, 200);
   assert.equal((await b.call('GET', '/api/state')).status, 401);
   assert.equal((await b.press('mau-tot', 'deploy')).status, 202, 'có token thì được');
   assert.equal((await b.call('POST', '/api/services/mau-tot/deploy', { body: {} })).status, 401);
