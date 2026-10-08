@@ -23,6 +23,8 @@ function emptyWorld() {
     locks: new Map(),
     secrets: {},
     credentials: null,
+    consoleConfig: null, // cấu hình của bảng điều khiển kèm lịch sử phiên bản
+    audit: [], // sổ thao tác của bảng điều khiển
     firstLogin: null,
     databases: new Set(),
     topics: new Set(),

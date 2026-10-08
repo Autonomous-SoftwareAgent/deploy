@@ -4,14 +4,23 @@
 //   environments: [{ id, name, color, description, kind, status(): Promise<{ok, services?, error?}> }]
 //   catalog: nguồn chung của máy chạy bảng điều khiển: tờ khai báo, lịch sử commit, nhãn trên kho (xem catalog.js).
 const fleet = require('../domain/fleet');
+const access = require('../domain/access');
+const branches = require('../domain/branches');
 const { short, COMMIT_RE } = require('../domain/naming');
 
 const UNGROUPED = 'Ungrouped';
 const refuse = (outcome, reason) => ({ ok: false, outcome, reason });
 
-function makeFleet({ environments, catalog }) {
+function makeFleet({ environments, catalog, settings, clock }) {
   const envById = (id) => environments.find((e) => e.id === id) || null;
-  const envView = (e, i) => ({ id: e.id, name: e.name, color: e.color, description: e.description || '', kind: e.kind, order: i, protected: false });
+
+  /** Cấu hình hiện hành và danh sách môi trường theo thứ tự, màu, mức bảo vệ đã đặt trong cấu hình. */
+  async function shape() {
+    const { config } = await settings.get();
+    const of = (e) => config.environments[e.id];
+    const view = (e) => ({ id: e.id, name: e.name, color: of(e).color || e.color, description: of(e).description || e.description || '', kind: e.kind, order: of(e).order, protected: access.isProtected(of(e).protect), protect: of(e).protect });
+    return { config, view, ordered: [...environments].sort((a, b) => of(a).order - of(b).order || a.id.localeCompare(b.id)) };
+  }
 
   /** Trạng thái của mọi môi trường, hỏi song song. Một môi trường không trả lời không làm hỏng các môi trường khác. */
   async function snapshot(only) {
@@ -25,7 +34,7 @@ function makeFleet({ environments, catalog }) {
 
   const commitView = (info, sha) => (sha ? { sha, shortSha: short(sha), message: info.bySha.get(sha) ? info.bySha.get(sha).message : null, author: info.bySha.get(sha) ? info.bySha.get(sha).author : null } : null);
 
-  function cellOf(state, info, name) {
+  function cellOf(state, info, name, mapping) {
     if (!state.reachable) return { deployed: false, unreachable: true, error: state.error };
     const row = state.rows.get(name);
     if (!row) return { deployed: false, absent: true };
@@ -35,7 +44,7 @@ function makeFleet({ environments, catalog }) {
     return {
       deployed: true, commit: commitView(info, running), health, containerStatus: row.containerStatus || null,
       deployedAt: row.deployed ? row.deployed.at : null, deployedBy: row.lastAttempt ? row.lastAttempt.by || null : null,
-      mapping: { mode: 'manual', value: info.declared ? short(info.declared) : null, inherited: false },
+      mapping,
       head: info.declared ? { sha: info.declared, shortSha: short(info.declared) } : null,
       behindCount: fleet.behindCount(info.shas, running, info.declared),
       // Khác bản đã khai mà không đếm được số commit (bản đang chạy không có trong lịch sử ở máy này): vẫn phải cho thấy là lệch.
@@ -48,15 +57,17 @@ function makeFleet({ environments, catalog }) {
     const m = await catalog.manifest();
     if (!m.ok) return m;
     const states = await snapshot();
+    const { config, view, ordered } = await shape();
     const names = Object.keys(m.manifest.services);
     const infos = new Map(await Promise.all(names.map(async (n) => [n, await catalog.service(n)])));
-    const shown = filters.environmentId ? environments.filter((e) => e.id === filters.environmentId) : environments;
+    const shown = filters.environmentId ? ordered.filter((e) => e.id === filters.environmentId) : ordered;
     const q = String(filters.q || '').trim().toLowerCase();
     const all = names.map((name) => {
       const info = infos.get(name);
-      const cells = Object.fromEntries(environments.map((e) => [e.id, cellOf(states.get(e.id), info, name)]));
+      const project = info.project || UNGROUPED;
+      const cells = Object.fromEntries(environments.map((e) => [e.id, cellOf(states.get(e.id), info, name, branches.resolve(config.branches, name, project, e.id))]));
       const live = Object.values(cells).filter((c) => c.deployed);
-      return { id: name, name, kind: info.kind, project: info.project || UNGROUPED, priorityScore: fleet.priorityScore(live), configWarnings: info.declared ? [] : [{ code: 'NOT_DECLARED' }], cells };
+      return { id: name, name, kind: info.kind, project, priorityScore: fleet.priorityScore(live), configWarnings: info.declared ? [] : [{ code: 'NOT_DECLARED' }], cells };
     });
     const has = (svc, test) => Object.values(svc.cells).some((c) => c.deployed && test(c));
     const summary = {
@@ -77,7 +88,7 @@ function makeFleet({ environments, catalog }) {
       return { project: { id: p, name: p }, attentionCount: services.filter((s) => s.priorityScore > 0).length, services };
     }).filter((g) => g.services.length).sort((a, b) => Math.max(...b.services.map((s) => s.priorityScore)) - Math.max(...a.services.map((s) => s.priorityScore)) || a.project.name.localeCompare(b.project.name));
     return {
-      ok: true, environments: shown.map((e) => envView(e, environments.indexOf(e))), allEnvironments: environments.map(envView),
+      ok: true, environments: shown.map(view), allEnvironments: ordered.map(view),
       projects: projects.map((p) => ({ id: p, name: p })), summary, groups,
       unreachable: environments.filter((e) => !states.get(e.id).reachable).map((e) => ({ environmentId: e.id, name: e.name, error: states.get(e.id).error })),
     };
@@ -90,7 +101,9 @@ function makeFleet({ environments, catalog }) {
     if (!m.manifest.services[id]) return refuse('UNKNOWN_SERVICE', `unknown service ${id}`);
     const info = await catalog.service(id);
     const states = await snapshot();
-    const cells = environments.map((e, i) => ({ environment: envView(e, i), ...cellOf(states.get(e.id), info, id) }));
+    const { config, view, ordered } = await shape();
+    const project = info.project || UNGROUPED;
+    const cells = ordered.map((e) => ({ environment: view(e), ...cellOf(states.get(e.id), info, id, branches.resolve(config.branches, id, project, e.id)) }));
     const runningIn = (sha) => cells.filter((c) => c.deployed && c.commit && c.commit.sha === sha).map((c) => c.environment.id);
     const commits = info.log.map((c) => ({ sha: c.sha, shortSha: short(c.sha), message: c.message, author: c.author, committedAt: c.at, build: fleet.buildOf(info.tags, info.branch, c.sha), declared: c.sha === info.declared, runningIn: runningIn(c.sha) }));
     const deployments = [];
@@ -101,16 +114,17 @@ function makeFleet({ environments, catalog }) {
     deployments.sort((a, b) => String(b.at).localeCompare(String(a.at)));
     return {
       ok: true,
-      service: { id, name: id, kind: info.kind, project: info.project || UNGROUPED, repo: info.repo, declared: commitView(info, info.declared), healthCheck: { path: m.manifest.services[id].health }, historyAvailable: info.log.length > 0, registryReachable: info.tags !== null },
-      environments: cells, commits, deployments,
+      service: { id, name: id, kind: info.kind, project, repo: info.repo, declared: commitView(info, info.declared), healthCheck: { path: m.manifest.services[id].health }, historyAvailable: info.log.length > 0, registryReachable: info.tags !== null },
+      environments: cells, commits, deployments, variables: fleet.variablesOf(m.manifest.services[id]),
     };
   }
 
   /**
    * Kiểm tra trước một yêu cầu. input: { kind, environmentId, items: [{ serviceId, targetSha? }] }.
    * targetSha bỏ trống: deploy lấy commit đã khai, rollback lấy bản liền trước ghi trong sổ của môi trường.
+   * actor: { name, role } của người gọi; cổng an toàn (quyền, giới hạn người, giờ khóa, gõ tên, duyệt) tính theo người đó.
    */
-  async function preflight({ kind, environmentId, items }) {
+  async function preflight({ kind, environmentId, items, actor }) {
     if (!['deploy', 'rollback'].includes(kind)) return refuse('BAD_INPUT', 'kind must be deploy or rollback');
     const env = envById(environmentId);
     if (!env) return refuse('UNKNOWN_ENVIRONMENT', `unknown environment ${environmentId}`);
@@ -137,10 +151,19 @@ function makeFleet({ environments, catalog }) {
         suggestions, blockers: res.blockers, warnings: res.warnings,
       });
     }
-    return { ok: true, kind, environment: envView(env, environments.indexOf(env)), items: out, canProceed: out.every((i) => !i.blockers.length) };
+    const { config, view } = await shape();
+    const gate = access.gate({ cfg: config, envId: env.id, envName: env.name, kind, actor, minute: access.weekMinuteOf(new Date(clock.millis())), serviceIds: out.map((i) => i.serviceId) });
+    return { ok: true, kind, environment: view(env), items: out, gate, canProceed: !gate.blockers.length && out.every((i) => !i.blockers.length) };
   }
 
-  return { overview, service, preflight, environment: envById, environments: () => environments.map(envView) };
+  /** Cổng an toàn cho một yêu cầu không qua kiểm tra trước (các đường /api cũ). */
+  async function gateFor({ kind, environmentId, actor, serviceIds }) {
+    const env = envById(environmentId);
+    const { config } = await shape();
+    return access.gate({ cfg: config, envId: env.id, envName: env.name, kind, actor, minute: access.weekMinuteOf(new Date(clock.millis())), serviceIds });
+  }
+
+  return { overview, service, preflight, gateFor, environment: envById, environments: async () => { const { view, ordered } = await shape(); return ordered.map(view); } };
 }
 
 module.exports = { makeFleet, UNGROUPED };

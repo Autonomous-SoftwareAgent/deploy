@@ -17,7 +17,7 @@ const refuse = (outcome, reason, extra = {}) => ({ ok: false, outcome, reason, .
  */
 function makeRuns({ fleet, executors, clock, random, onSettled = () => {} }) {
   const runs = []; // mới nhất ở cuối
-  const view = (r) => ({ id: r.id, kind: r.kind, environment: r.environment, requestedBy: r.by, status: run.runStatus(r.items), startedAt: r.startedAt, finishedAt: r.finishedAt, autoRollback: true, items: r.items.map((i) => ({ ...i, steps: i.steps.map((s) => ({ ...s })) })) });
+  const view = (r) => ({ id: r.id, kind: r.kind, environment: r.environment, requestedBy: r.by, approvedBy: r.approvedBy || null, status: run.runStatus(r.items), startedAt: r.startedAt, finishedAt: r.finishedAt, autoRollback: true, items: r.items.map((i) => ({ ...i, steps: i.steps.map((s) => ({ ...s })) })) });
   const active = (environmentId, serviceId) => runs.find((r) => r.environment.id === environmentId && r.items.some((i) => i.serviceId === serviceId && !run.itemDone(i))) || null;
 
   function log(r, serviceId, level, text) {
@@ -25,19 +25,25 @@ function makeRuns({ fleet, executors, clock, random, onSettled = () => {} }) {
     if (r.log.length > LOG_KEEP) r.log.splice(0, r.log.length - LOG_KEEP);
   }
 
-  /** input: { kind, environmentId, items: [{serviceId, targetSha?}], by }. Tất cả hoặc không: một mục bị chặn thì không mục nào chạy. */
-  async function start({ kind, environmentId, items, by }) {
-    const pre = await fleet.preflight({ kind, environmentId, items });
+  /**
+   * input: { kind, environmentId, items: [{serviceId, targetSha?}], actor: {name, role}, confirmation?, approvedBy? }.
+   * Tất cả hoặc không: một mục bị chặn thì không mục nào chạy. Môi trường đòi duyệt mà chưa có người duyệt: trả APPROVAL_REQUIRED.
+   */
+  async function start({ kind, environmentId, items, actor, confirmation, approvedBy }) {
+    const by = actor.name;
+    const pre = await fleet.preflight({ kind, environmentId, items, actor });
     if (!pre.ok) return pre;
     const busy = pre.items.find((i) => active(environmentId, i.serviceId));
     if (busy) return refuse(OUTCOME.BUSY, `${busy.serviceId} already has a run in progress on ${pre.environment.name}`, { preflight: pre });
     if (!pre.canProceed) return refuse('BLOCKED', 'at least one item is blocked; nothing was started', { preflight: pre });
+    if (pre.gate.confirmation && confirmation !== pre.gate.confirmation) return refuse('CONFIRMATION_REQUIRED', `type ${pre.gate.confirmation} to confirm`, { preflight: pre });
+    if (pre.gate.approval && !approvedBy) return refuse('APPROVAL_REQUIRED', `${pre.environment.name} requires a second person to approve`, { preflight: pre });
     const executor = executors.get(environmentId);
     if (!executor) return refuse('UNKNOWN_ENVIRONMENT', `environment ${environmentId} does not accept commands`);
-    const r = { id: random.bytes(6).toString('hex'), kind, environment: { id: pre.environment.id, name: pre.environment.name }, by, startedAt: clock.now(), finishedAt: null, seq: 0, log: [], items: pre.items.map((i) => run.newItem({ serviceId: i.serviceId, fromSha: i.from && i.from.sha, toSha: i.to.sha })) };
+    const r = { id: random.bytes(6).toString('hex'), kind, environment: { id: pre.environment.id, name: pre.environment.name }, by, approvedBy: approvedBy || null, startedAt: clock.now(), finishedAt: null, seq: 0, log: [], items: pre.items.map((i) => run.newItem({ serviceId: i.serviceId, fromSha: i.from && i.from.sha, toSha: i.to.sha })) };
     runs.push(r);
     if (runs.length > KEEP) runs.splice(0, runs.length - KEEP);
-    log(r, null, 'info', `Started ${kind} of ${r.items.length} service(s) on ${r.environment.name}, requested by ${by}.`);
+    log(r, null, 'info', `Started ${kind} of ${r.items.length} service(s) on ${r.environment.name}, requested by ${by}${approvedBy ? `, approved by ${approvedBy}` : ''}.`);
     r.done = Promise.all(r.items.map((item) => {
       const onEvent = (e) => {
         if (e.event === 'step') run.applyStep(item, e);

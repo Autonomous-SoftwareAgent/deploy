@@ -76,6 +76,14 @@
  * @property {(record: object) => Promise<void>} save
  * @property {(text: string) => Promise<string>} publishFirstLogin  ghi bản rõ MỘT lần, trả nơi đã ghi
  *
+ * @typedef {object} ConfigStore  Cấu hình của bảng điều khiển kèm lịch sử phiên bản (không chứa bí mật).
+ * @property {() => Promise<object|null>} load
+ * @property {(record: object) => Promise<void>} save
+ *
+ * @typedef {object} AuditLog  Sổ thao tác của bảng điều khiển: chỉ thêm.
+ * @property {(entry: object) => Promise<void>} append
+ * @property {(limit: number) => Promise<object[]>} list  mới trước
+ *
  * @typedef {object} Hasher  Băm mật khẩu (chậm, có muối), băm token (nhanh) và so sánh không lộ thời gian.
  * @property {(password: string, salt: string) => string} slowHash
  * @property {(text: string) => string} fastHash
@@ -106,6 +114,8 @@ const PORTS = Object.freeze({
   health: ['waitHealthy'],
   clock: ['now', 'millis'],
   credentials: ['load', 'save', 'publishFirstLogin'],
+  configStore: ['load', 'save'],
+  auditLog: ['append', 'list'],
   random: ['bytes'],
   hasher: ['slowHash', 'fastHash', 'equal'],
   jobExecutor: ['run'],

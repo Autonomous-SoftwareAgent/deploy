@@ -14,14 +14,23 @@ const { csrf } = require('./middleware/csrf');
 const { deploymentsController } = require('./controllers/deployments');
 const { staticController } = require('./controllers/static');
 const { fleetController } = require('./controllers/fleet');
+const { adminController } = require('./controllers/admin');
 
 const WEB_DIR = path.join(__dirname, '..', 'web');
 
 /** app: { auth, console }. opts: { port, memory?, target? }. target: dòng mô tả đích từ xa (bỏ trống: đích là máy này). */
 function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}) {
-  const deployments = deploymentsController({ console: app.console, memory, target });
+  const guard = app.fleet ? async (kind, who, service) => {
+    const g = await app.fleet.gateFor({ kind, environmentId: app.primaryEnvironmentId, actor: { name: who.actor, role: who.role }, serviceIds: [service] });
+    const why = g.blockers.length ? g.blockers[0].message : g.confirmation || g.approval ? 'this environment asks for a typed confirmation or an approval: use /api/v1/deployments' : null;
+    if (why) await app.audit.record({ actor: who.actor, action: `${kind}.refused`, target: `${service} @ ${app.primaryEnvironmentId}`, detail: why, outcome: 'refused' });
+    else await app.audit.record({ actor: who.actor, action: `${kind}.start`, target: `${service} @ ${app.primaryEnvironmentId}`, detail: 'through the single-target /api route' });
+    return why;
+  } : undefined;
+  const deployments = deploymentsController({ console: app.console, memory, target, guard });
   const assets = staticController({ dir: WEB_DIR });
-  const many = app.fleet && app.runs ? fleetController({ fleet: app.fleet, runs: app.runs, memory, skippedTargets: app.skippedTargets || [] }) : null;
+  const many = app.fleet && app.runs ? fleetController({ fleet: app.fleet, runs: app.runs, approvals: app.approvals, memory, skippedTargets: app.skippedTargets || [] }) : null;
+  const admin = many ? adminController({ settings: app.settings, auth: app.auth, audit: app.audit, approvals: app.approvals }) : null;
 
   const match = makeRouter([
     { method: 'GET', path: '/healthz', open: true, handler: () => json(200, { ok: true }) },
@@ -34,6 +43,7 @@ function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}
     { method: 'POST', path: '/api/services/:service/deploy', handler: deployments.deploy },
     { method: 'POST', path: '/api/services/:service/rollback', handler: deployments.rollback },
     ...(many ? many.routes : []),
+    ...(admin ? admin.routes : []),
   ]);
 
   let server = null;

@@ -110,4 +110,15 @@ function preflightItem({ kind, reachable, row, target, shas, build, name, enviro
   return out;
 }
 
-module.exports = { HEALTH, BUILD, BLOCK, WARN, healthOf, behindCount, priorityScore, buildOf, changesBetween, ranOkCommits, preflightItem };
+/**
+ * Biến môi trường của một dịch vụ theo tờ khai báo. Biến thường kèm giá trị; bí mật chỉ có TÊN (giá trị nằm trên máy đích,
+ * bảng điều khiển không đọc). Trả [{name, value|null, secret, source}].
+ */
+function variablesOf(svc) {
+  const out = Object.entries(svc.env || {}).map(([name, value]) => ({ name, value, secret: false, source: 'env' }));
+  for (const name of svc.secretEnv || []) out.push({ name, value: null, secret: true, source: 'secretEnv' });
+  if (svc.database && svc.database.urlEnv) out.push({ name: svc.database.urlEnv, value: null, secret: true, source: 'database' });
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+module.exports = { variablesOf, HEALTH, BUILD, BLOCK, WARN, healthOf, behindCount, priorityScore, buildOf, changesBetween, ranOkCommits, preflightItem };

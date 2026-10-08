@@ -1,5 +1,6 @@
 'use strict';
 // NƠI DUY NHẤT lắp bộ nối vào ca sử dụng. Không tệp nào khác tự tạo bộ nối; lớp interfaces chỉ nhận "app" trả về từ đây.
+const path = require('node:path');
 const { assertPort } = require('./application/ports');
 const { makePrepareTier } = require('./application/prepare-tier');
 const { makeImages } = require('./application/images');
@@ -19,8 +20,11 @@ const { makeRemoteTarget } = require('./application/remote-target');
 const { makeRemoteJobExecutor } = require('./application/remote-jobs');
 const { makeEnvironment, PALETTE } = require('./application/environment');
 const { makeCatalog } = require('./application/catalog');
-const { makeFleet } = require('./application/fleet');
+const { makeFleet, UNGROUPED } = require('./application/fleet');
 const { makeRuns } = require('./application/runs');
+const { makeSettings } = require('./application/settings');
+const { makeAudit } = require('./application/audit');
+const { makeApprovals } = require('./application/approvals');
 const { describeTarget } = require('./domain/target');
 
 const { makeLayout } = require('./infrastructure/layout');
@@ -38,6 +42,7 @@ const { makeHttpHealth } = require('./infrastructure/http-health');
 const { systemClock, systemRandom } = require('./infrastructure/system');
 const { nodeHasher } = require('./infrastructure/node-hasher');
 const { makeFsCredentials } = require('./infrastructure/fs-credentials');
+const { makeFsConfigStore, makeFsAuditLog } = require('./infrastructure/fs-console-records');
 const { makeChildProcessJobExecutor, makeDirectJobExecutor } = require('./infrastructure/job-executors');
 const { makeMemoryStorage } = require('./infrastructure/memory/storage');
 const { makeMemoryPlatform } = require('./infrastructure/memory/platform');
@@ -109,13 +114,19 @@ function assembleConsole(app, { credentials, jobExecutor, clock, random = system
  * Phần NHIỀU MÔI TRƯỜNG của bảng điều khiển (design/deploy-console.api.md): mỗi môi trường là một đích kèm bộ chạy việc của nó.
  * members: [{ id, name, kind, description?, check, getStatus, jobExecutor, forget? }]; here: các cổng của MÁY NÀY cho danh mục dịch vụ.
  */
-function assembleFleet(members, { check, source, registry, clock, random = systemRandom }) {
+function assembleFleet(members, { check, source, registry, clock, random = systemRandom, configStore, auditLog }) {
+  assertPort('configStore', configStore); assertPort('auditLog', auditLog);
   const environments = members.map((m, i) => makeEnvironment({ id: m.id, name: m.name, color: PALETTE[i % PALETTE.length], description: m.description, kind: m.kind, check: m.check, getStatus: m.getStatus }));
   const catalog = makeCatalog({ check, source, registry, clock });
-  const fleet = makeFleet({ environments, catalog });
+  const audit = makeAudit({ auditLog, clock });
+  const services = async () => { const m = await catalog.manifest(); return m.ok ? Promise.all(Object.keys(m.manifest.services).map(async (id) => ({ id, project: (await catalog.service(id)).project || UNGROUPED }))) : []; };
+  const settings = makeSettings({ configStore, clock, environmentIds: () => members.map((m) => m.id), services, audit });
+  const fleet = makeFleet({ environments, catalog, settings, clock });
   const executors = new Map(members.map((m) => [m.id, assertPort('jobExecutor', m.jobExecutor)]));
   const runs = makeRuns({ fleet, executors, clock, random, onSettled: () => { catalog.forget(); for (const m of members) if (m.forget) m.forget(); } });
-  return { fleet, runs, catalog };
+  const approvals = makeApprovals({ runs, settings, audit, clock, random });
+  // primaryEnvironmentId: môi trường mà các đường /api cũ (một đích) đang điều khiển.
+  return { fleet, runs, catalog, settings, audit, approvals, primaryEnvironmentId: members[0].id };
 }
 
 /** Một đích từ xa thành một thành viên của assembleFleet. */
@@ -142,7 +153,7 @@ function buildLocalConsole({ root, entry, port, sshBin }) {
   for (const name of targets.names()) {
     try { members.push(remoteMember({ layout: ports.layout, target: targets.load(name), sshBin }).member); } catch (e) { skipped.push(`${name}: ${e.message}`); }
   }
-  const many = assembleFleet(members, { check: app.check, source: ports.source, registry: ports.registry, clock: ports.clock });
+  const many = assembleFleet(members, { check: app.check, source: ports.source, registry: ports.registry, clock: ports.clock, configStore: makeFsConfigStore({ dir: ports.layout.run }), auditLog: makeFsAuditLog({ dir: ports.layout.run }) });
   const full = { ...board, ...many, skippedTargets: skipped };
   return { ...full, server: makeHttpServer(full, { port }) };
 }
@@ -165,7 +176,7 @@ function buildMemoryConsole({ world = sampleWorld({ delayMs: 2500 }), port, imag
   const many = assembleFleet([
     { id: 'mau-thu', name: 'mau-thu', kind: 'memory', description: 'Sample environment held in memory', check: app.check, getStatus: app.getStatus, jobExecutor: direct(ports, app) },
     { id: 'mau-that', name: 'mau-that', kind: 'memory', description: 'Second sample environment held in memory', check: app2.check, getStatus: app2.getStatus, jobExecutor: direct(second, app2) },
-  ], { check: app.check, source: ports.source, registry: ports.registry, clock: ports.clock, random: ports.random || systemRandom });
+  ], { check: app.check, source: ports.source, registry: ports.registry, clock: ports.clock, random: ports.random || systemRandom, configStore: ports.configStore, auditLog: ports.auditLog });
   const full = { ...board, ...many };
   return { ...full, app, world, worlds: [world, second.world], server: makeHttpServer(full, { port, memory: true }) };
 }
@@ -182,7 +193,9 @@ function buildRemoteConsole({ root, port, targetName, target, shell, sshBin, pol
   const { remote, member } = remoteMember({ layout, target: chosen, shell, sshBin, pollMs, sleep });
   const board = assembleConsole(remote, { credentials: makeFsCredentials({ dir: layout.run }), jobExecutor: member.jobExecutor, clock: systemClock });
   // Danh mục dịch vụ (tờ khai báo, lịch sử commit, nhãn trên kho) vẫn là của máy này; môi trường duy nhất là đích từ xa.
-  const many = assembleFleet([member], { check: assemble(here).check, source: here.source, registry: here.registry, clock: systemClock });
+  // Cấu hình và sổ thao tác của bảng điều khiển cho một đích từ xa nằm trong thư mục riêng của đích đó ở máy này.
+  const records = path.join(layout.run, 'targets', chosen.name);
+  const many = assembleFleet([member], { check: assemble(here).check, source: here.source, registry: here.registry, clock: systemClock, configStore: makeFsConfigStore({ dir: records }), auditLog: makeFsAuditLog({ dir: records }) });
   const full = { ...board, ...many };
   return { ...full, target: chosen, server: makeHttpServer(full, { port, target: describeTarget(chosen) }) };
 }

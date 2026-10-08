@@ -56,7 +56,17 @@ function makeMemoryStorage(world) {
     async publishFirstLogin(text) { world.firstLogin = text; return '(bộ nhớ: world.firstLogin)'; },
   };
 
-  return { declarations, locks, ledger, secrets, configFiles, credentials };
+  const configStore = {
+    async load() { return world.consoleConfig ? clone(world.consoleConfig) : null; },
+    async save(record) { world.consoleConfig = clone(record); },
+  };
+
+  const auditLog = {
+    async append(entry) { world.audit.push(clone(entry)); },
+    async list(limit) { return world.audit.slice(-limit).reverse().map(clone); },
+  };
+
+  return { declarations, locks, ledger, secrets, configFiles, credentials, configStore, auditLog };
 }
 
 module.exports = { makeMemoryStorage };
