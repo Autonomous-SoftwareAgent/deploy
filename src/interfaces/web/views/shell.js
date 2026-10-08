@@ -21,7 +21,7 @@ export function sideView(state, actions) {
       h('button', { class: `nav ${state.view === 'approvals' ? 'on' : ''}`, onclick: actions.openApprovals }, C.approvals, pending ? h('span', { class: 'chip warn', css: { 'margin-left': '8px' } }, pending) : null),
       h('div', { class: 'navh' }, T.nav.configuration, ' ', isDirty() ? h('span', { class: 'dirtydot', title: C.unsaved }) : null),
       C.nav.map(([tab, label]) => h('button', { class: `nav ${state.view === 'config' && state.cfg.tab === tab ? 'on' : ''}`, onclick: () => actions.openConfig(tab) }, label))),
-    h('div', { class: 'me' }, h('span', null, who ? T.nav.signedIn(who.name, who.role) : ''), h('span', { class: 'xs' }, T.nav.signOutHint)),
+    h('div', { class: 'me' }, h('span', null, who ? T.nav.signedIn(who.name, who.role) : ''), h('span', { class: 'xs' }, T.nav.signOutHint), h('span', { class: 'xs' }, state.live ? T.nav.live : T.nav.polling)),
   ];
 }
 

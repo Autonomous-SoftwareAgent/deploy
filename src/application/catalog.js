@@ -41,7 +41,14 @@ function makeCatalog({ check, source, registry, clock, historyLimit = 60, ttlMs 
     return value;
   }
 
-  return { manifest, service, forget: () => { cached = new Map(); } };
+  /** Tệp đổi giữa hai commit của một dịch vụ. Máy không có repo, hay không có một trong hai commit: null. */
+  async function diff(name, from, to) {
+    const info = await service(name);
+    if (!info.repo || !info.shas.includes(from) || !info.shas.includes(to)) return null;
+    try { return await source.diffStat(info.repo, from, to); } catch { return null; }
+  }
+
+  return { manifest, service, diff, forget: () => { cached = new Map(); } };
 }
 
 module.exports = { makeCatalog };

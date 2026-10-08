@@ -15,6 +15,7 @@ const { deploymentsController } = require('./controllers/deployments');
 const { staticController } = require('./controllers/static');
 const { fleetController } = require('./controllers/fleet');
 const { adminController } = require('./controllers/admin');
+const { eventsController } = require('./controllers/events');
 
 const WEB_DIR = path.join(__dirname, '..', 'web');
 
@@ -42,12 +43,14 @@ function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}
     { method: 'GET', path: '/api/jobs/:id', handler: deployments.job },
     { method: 'POST', path: '/api/services/:service/deploy', handler: deployments.deploy },
     { method: 'POST', path: '/api/services/:service/rollback', handler: deployments.rollback },
+    ...(app.changes ? eventsController({ changes: app.changes }).routes : []),
     // Đường cụ thể (environments/managed) phải đứng trước đường có tham số của cùng tiền tố.
     ...(admin ? admin.routes : []),
     ...(many ? many.routes : []),
   ]);
 
   let server = null;
+  const streams = new Set(); // các dòng sự kiện đang mở; phải đóng trước thì máy chủ mới tắt được
   const livePort = () => (server && server.address() ? server.address().port : port);
 
   // Thứ tự có nghĩa: tên máy trước tiên; tìm đường; biết ai gọi; chặn giả mạo; rồi mới đọc thân.
@@ -66,6 +69,14 @@ function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}
       const url = new URL(req.url, 'http://x');
       out = await run({ req, method: req.method, host, pathname: url.pathname, query: url.searchParams, params: {}, body: {}, who: null });
     } catch (e) { out = fail(500, `lỗi không lường trước: ${e.message}`); }
+    // Dòng sự kiện: giữ kết nối mở và để bộ điều khiển ghi dần; đóng trang thì dọn người nghe.
+    if (out.stream) {
+      res.writeHead(200, { ...out.headers, 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive' });
+      const stop = out.stream(res);
+      streams.add(res);
+      res.on('close', () => { stop(); streams.delete(res); });
+      return;
+    }
     res.writeHead(out.status, out.headers);
     res.end(out.body);
   }
@@ -75,7 +86,7 @@ function makeHttpServer(app, { port = 8900, memory = false, target = null } = {}
     server,
     // Chỉ nghe trên 127.0.0.1: không máy nào khác trong mạng gọi vào được.
     listen: () => new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', () => resolve(server.address())); }),
-    close: () => new Promise((resolve) => server.close(() => resolve())),
+    close: () => new Promise((resolve) => { for (const res of streams) res.end(); server.close(() => resolve()); }),
   };
 }
 

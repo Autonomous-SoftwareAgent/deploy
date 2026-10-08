@@ -156,6 +156,17 @@ function makeFleet({ environments, catalog, settings, clock }) {
     return { ok: true, kind, environment: view(env), items: out, gate, canProceed: !gate.blockers.length && out.every((i) => !i.blockers.length) };
   }
 
+  /** Tệp đổi giữa hai commit của một dịch vụ (cho ngăn so sánh trong hộp thoại). from, to: mã commit đủ 40 ký tự. */
+  async function diff({ serviceId, from, to }) {
+    const m = await catalog.manifest();
+    if (!m.ok) return m;
+    if (!m.manifest.services[serviceId]) return refuse('UNKNOWN_SERVICE', `unknown service ${serviceId}`);
+    if (!COMMIT_RE.test(from || '') || !COMMIT_RE.test(to || '')) return refuse('BAD_INPUT', 'from and to must be full 40-character commit ids');
+    const files = await catalog.diff(serviceId, from, to);
+    if (!files) return refuse('NO_HISTORY', 'one of the two commits is not in the history on the machine running the console');
+    return { ok: true, from, to, files, totals: { files: files.length, added: files.reduce((n, f) => n + (f.added || 0), 0), removed: files.reduce((n, f) => n + (f.removed || 0), 0) } };
+  }
+
   /** Mấy dòng log cuối của một dịch vụ ở một môi trường. */
   async function logs({ serviceId, environmentId, tail }) {
     const m = await catalog.manifest();
@@ -174,7 +185,7 @@ function makeFleet({ environments, catalog, settings, clock }) {
     return access.gate({ cfg: config, envId: env.id, envName: env.name, kind, actor, minute: access.weekMinuteOf(new Date(clock.millis())), serviceIds });
   }
 
-  return { overview, service, preflight, logs, gateFor, environment: envById, environments: async () => { const { view, ordered } = await shape(); return ordered.map(view); } };
+  return { overview, service, preflight, diff, logs, gateFor, environment: envById, environments: async () => { const { view, ordered } = await shape(); return ordered.map(view); } };
 }
 
 module.exports = { makeFleet, UNGROUPED };

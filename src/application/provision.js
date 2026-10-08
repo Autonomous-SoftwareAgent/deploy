@@ -15,10 +15,10 @@ const refuse = (outcome, reason) => ({ ok: false, outcome, reason });
  * connector.connect(target) trả thành viên môi trường (check, getStatus, bộ chạy việc...) cho bảng điều khiển;
  * connector.shell(target) trả một RemoteShell chờ được lâu, cho bước cài đặt.
  */
-function makeProvision({ cloud, targetStore, connector, registry, setupScript, audit, clock, random, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), defaults = {} }) {
+function makeProvision({ cloud, targetStore, connector, registry, setupScript, audit, clock, random, changes = { publish() {} }, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), defaults = {} }) {
   const operations = new Map(); // mã -> { id, kind, name, status, steps, log, done }
   const view = (o) => ({ id: o.id, kind: o.kind, name: o.name, status: o.status, steps: o.steps.map((s) => ({ ...s })), log: o.log.slice(-200), startedAt: o.startedAt, finishedAt: o.finishedAt || null });
-  const say = (o, text) => o.log.push({ at: clock.now(), text: String(text).slice(0, 500) });
+  const say = (o, text) => { o.log.push({ at: clock.now(), text: String(text).slice(0, 500) }); changes.publish('environments'); };
   const targetOf = (t) => ({ name: t.name, ...t.spec });
   const lastLines = (res) => `${res.stderr || ''}\n${res.stdout || ''}`.trim().split('\n').slice(-3).join(' ').slice(0, 400) || 'no output';
 

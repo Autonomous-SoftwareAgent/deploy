@@ -27,7 +27,7 @@ function diff(before, after) {
  * @param {{configStore: import('./ports').ConfigStore, clock: import('./ports').Clock, environmentIds: () => string[],
  *          services: () => Promise<{id: string, project: string}[]>, audit: {record: Function}}} deps
  */
-function makeSettings({ configStore, clock, environmentIds, services, audit }) {
+function makeSettings({ configStore, clock, environmentIds, services, audit, changes = { publish() {} } }) {
   async function load() {
     const rec = await configStore.load();
     if (rec && Number(rec.schema) > SCHEMA) throw new Error(`console configuration has schema ${rec.schema}; this version understands up to ${SCHEMA}`);
@@ -45,6 +45,7 @@ function makeSettings({ configStore, clock, environmentIds, services, audit }) {
     const version = rec.version + 1;
     const history = [...rec.history, { version, at: clock.now(), by, note: String(note || '').slice(0, 200), config }].slice(-KEEP);
     await configStore.save({ schema: SCHEMA, version, config, history });
+    changes.publish('config');
     return version;
   }
 

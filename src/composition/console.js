@@ -24,6 +24,7 @@ const { openConsoleDb } = require('../infrastructure/sqlite/console-db');
 const sqlite = require('../infrastructure/sqlite/console-stores');
 const { makeImportRecords } = require('../application/import-records');
 const { makeProvision } = require('../application/provision');
+const { makeChanges } = require('../application/changes');
 const { makeGcloudCompute, makeFsSetupScript } = require('../infrastructure/gcloud-compute');
 const { makeChildProcessJobExecutor, makeDirectJobExecutor } = require('../infrastructure/job-executors');
 const { sampleWorld } = require('../infrastructure/memory/world');
@@ -54,12 +55,13 @@ function assembleFleet(members, { check, source, registry, clock, random = syste
   const environments = members.map((m, i) => makeEnvironment({ id: m.id, name: m.name, color: PALETTE[i % PALETTE.length], description: m.description, kind: m.kind, check: m.check, getStatus: m.getStatus, getLogs: m.getLogs }));
   const catalog = makeCatalog({ check, source, registry, clock });
   const audit = makeAudit({ auditLog, clock });
+  const changes = makeChanges();
   const services = async () => { const m = await catalog.manifest(); return m.ok ? Promise.all(Object.keys(m.manifest.services).map(async (id) => ({ id, project: (await catalog.service(id)).project || UNGROUPED }))) : []; };
-  const settings = makeSettings({ configStore, clock, environmentIds: () => members.map((m) => m.id), services, audit });
+  const settings = makeSettings({ configStore, clock, changes, environmentIds: () => members.map((m) => m.id), services, audit });
   const fleet = makeFleet({ environments, catalog, settings, clock });
   const executors = new Map(members.map((m) => [m.id, assertPort('jobExecutor', m.jobExecutor)]));
-  const runs = makeRuns({ fleet, executors, runStore, clock, random, onSettled: () => { catalog.forget(); for (const m of members) if (m.forget) m.forget(); } });
-  const approvals = makeApprovals({ runs, settings, audit, approvalStore, clock, random });
+  const runs = makeRuns({ fleet, executors, runStore, clock, random, changes, onSettled: () => { catalog.forget(); for (const m of members) if (m.forget) m.forget(); } });
+  const approvals = makeApprovals({ runs, settings, audit, approvalStore, clock, random, changes });
   // Sổ các môi trường đang có: ca sử dụng thêm, gỡ môi trường đổi nó; môi trường đầu tiên (của chính bảng điều khiển) không gỡ được.
   const first = members[0].id;
   const roster = {
@@ -79,7 +81,7 @@ function assembleFleet(members, { check, source, registry, clock, random = syste
     },
   };
   // primaryEnvironmentId: môi trường mà các đường /api cũ (một đích) đang điều khiển.
-  return { fleet, runs, catalog, settings, audit, approvals, roster, primaryEnvironmentId: first };
+  return { fleet, runs, catalog, settings, audit, approvals, roster, changes, primaryEnvironmentId: first };
 }
 
 /**
@@ -125,7 +127,7 @@ function buildLocalConsole({ root, entry, port, sshBin }) {
   const provision = makeProvision({
     cloud: assertPort('cloud', makeGcloudCompute()), targetStore: stores.targetStore, setupScript: assertPort('setupScript', makeFsSetupScript({ layout: ports.layout })),
     connector: { connect: (target) => remoteMember({ layout: ports.layout, target, sshBin }).member, shell: (target) => makeGcloudSshShell({ target, stateDir: ports.layout.run, sshBin: sshBin || undefined, timeoutMs: 20 * 60 * 1000 }) },
-    registry: many.roster, audit: many.audit, clock: ports.clock, random: systemRandom, defaults: { zone: known.zone || 'asia-southeast1-a', configuration: known.configuration || '' },
+    registry: many.roster, audit: many.audit, changes: many.changes, clock: ports.clock, random: systemRandom, defaults: { zone: known.zone || 'asia-southeast1-a', configuration: known.configuration || '' },
   });
   const full = { ...board, ...many, provision, skippedTargets: skipped, importRecords: stores.importRecords, closeStores: stores.close };
   return { ...full, server: makeHttpServer(full, { port }) };
@@ -155,7 +157,7 @@ function buildMemoryConsole({ world = sampleWorld({ delayMs: 2500 }), port, imag
   const added = [];
   const connect = (target) => { const p = memoryPorts(sampleWorld({ delayMs: world.delayMs })); const a = assemble(p); added.push(p.world); return { id: target.name, name: target.name, kind: 'memory', description: `Sample machine ${target.instance} (${target.zone})`, check: a.check, getStatus: a.getStatus, getLogs: a.getLogs, jobExecutor: direct(p, a) }; };
   const provision = makeProvision({ cloud: ports.cloud, targetStore: ports.targetStore, setupScript: ports.setupScript, connector: { connect, shell: () => ({ exec: async () => ({ code: 0, stdout: 'ready\n== sample setup\n', stderr: '' }) }) },
-    registry: many.roster, audit: many.audit, clock: ports.clock, random: ports.random || systemRandom, sleep: async () => {}, defaults: { zone: 'sample-zone-a', configuration: '' } });
+    registry: many.roster, audit: many.audit, changes: many.changes, clock: ports.clock, random: ports.random || systemRandom, sleep: async () => {}, defaults: { zone: 'sample-zone-a', configuration: '' } });
   const full = { ...board, ...many, provision };
   return { ...full, app, world, worlds: [world, second.world], added, server: makeHttpServer(full, { port, memory: true }) };
 }

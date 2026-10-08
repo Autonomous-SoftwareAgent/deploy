@@ -220,3 +220,35 @@ test('log runtime và biến môi trường của dịch vụ: log theo môi tr�
   ]);
   assert.deepEqual((await b.call('GET', '/api/v1/services/mau-tot')).body.variables, []);
 });
+
+test('so sánh theo tệp giữa hai commit: danh sách tệp kèm số dòng thêm bớt và tổng; commit lạ hay sai dạng thì báo rõ', async (t) => {
+  const b = await boot(t);
+  const d = await b.call('GET', `/api/v1/services/mau-tot/diff?from=${commit('a')}&to=${commit('b')}`);
+  assert.equal(d.status, 200);
+  assert.deepEqual([d.body.files.length, d.body.totals, d.body.files[0].path], [1, { files: 1, added: 10, removed: 0 }, 'src/sample-bbbb.js']);
+  assert.equal((await b.call('GET', `/api/v1/services/mau-tot/diff?from=${commit('a')}&to=${'9'.repeat(40)}`)).body.error.code, 'NO_HISTORY');
+  assert.equal((await b.call('GET', '/api/v1/services/mau-tot/diff?from=abc&to=def')).status, 400);
+  assert.equal((await b.call('GET', `/api/v1/services/khong-co/diff?from=${commit('a')}&to=${commit('b')}`)).status, 404);
+});
+
+test('dòng sự kiện (SSE): phải đăng nhập; lần chạy đổi thì trang nhận tên chủ đề "runs"; máy chủ tắt được dù còn trang đang nghe', async (t) => {
+  const b = await boot(t);
+  const { port } = b.board.server.server.address();
+  const token = /<token>"\): (\S+)/.exec(b.board.world.firstLogin)[1];
+  const open = (headers) => new Promise((resolve, reject) => { const req = http.request({ host: '127.0.0.1', port, path: '/api/v1/events', headers: { host: `127.0.0.1:${port}`, ...headers } }, resolve); req.on('error', reject); req.end(); });
+  const denied = await open({}); denied.resume();
+  assert.equal(denied.statusCode, 401);
+  const res = await open({ authorization: `Bearer ${token}` });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.headers['content-type'], /text\/event-stream/);
+  assert.equal(res.headers['x-content-type-options'], 'nosniff', 'dòng sự kiện vẫn mang các header bảo vệ');
+  let text = ''; res.on('data', (c) => { text += c; });
+  assert.equal(b.board.changes.listeners(), 1);
+  await b.call('POST', '/api/v1/deployments', { kind: 'deploy', environmentId: 'mau-thu', items: [{ serviceId: 'mau-tot' }] });
+  await b.board.runs.settle();
+  await new Promise((r) => setTimeout(r, 50));
+  assert.match(text, /^retry: 3000\n\n/);
+  assert.ok(text.includes('data: runs\n\n'), 'có tin báo lần chạy đổi');
+  assert.ok(!/aaaa|bbbb|mau-tot/.test(text), 'chỉ gửi tên chủ đề, không gửi dữ liệu');
+  // t.after của boot đóng máy chủ trong lúc kết nối này còn mở: nếu máy chủ không tự đóng các dòng sự kiện thì test treo ở đây.
+});

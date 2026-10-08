@@ -130,7 +130,7 @@
 /** Tên hàm của từng cổng: bộ test hợp đồng và composition dùng để kiểm một bộ nối có đủ hàm không. */
 const PORTS = Object.freeze({
   declarations: ['load', 'save'],
-  source: ['has', 'anyPresent', 'head', 'dirtyCount', 'resolve', 'subject', 'log', 'extract', 'discard'],
+  source: ['has', 'anyPresent', 'head', 'dirtyCount', 'resolve', 'subject', 'log', 'diffStat', 'extract', 'discard'],
   configFiles: ['stale', 'install', 'hostPath'],
   runtime: ['list', 'runningCommit', 'hasImage', 'imageCommit', 'pull', 'tag', 'build', 'applyStack', 'hasStack', 'removeStack', 'logs'],
   registry: ['lookup', 'tags'],

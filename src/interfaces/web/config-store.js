@@ -78,7 +78,7 @@ export const configActions = {
     await loadManaged(); await pageActions.reloadOverview(); await loadConfig(isDirty());
   },
   /** Gọi định kỳ khi đang ở mục Environments: việc tạo hay xóa máy chạy vài phút, trang theo dõi từng bước. */
-  async pollEnvironments() { const m = state.cfg.managed; if (m && (m.operations.some((o) => o.status === 'running') || m.items.some((e) => e.state === 'creating' || e.state === 'deleting'))) await loadManaged(); },
+  async pollEnvironments(force = false) { const m = state.cfg.managed; if (force) return loadManaged(); if (m && (m.operations.some((o) => o.status === 'running') || m.items.some((e) => e.state === 'creating' || e.state === 'deleting'))) await loadManaged(); },
   async filterAudit(patch) { Object.assign(state.cfg.auditFilter, patch); await loadSide(); },
   setConfirmWord(v) { state.cfg.confirmWord = v; paint(); },
   async reset() { state.cfg.confirmWord = ''; await after(await api.configReset(), async () => { await loadConfig(false); }); },

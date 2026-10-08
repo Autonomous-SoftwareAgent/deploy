@@ -34,6 +34,11 @@ function makeGitSource({ layout, run }) {
       const out = git(repo, ['log', '-n', String(n), '--format=%H%x1f%an%x1f%aI%x1f%s']);
       return out.split('\n').filter(Boolean).map((line) => { const [sha, author, at, message] = line.split('\x1f'); return { sha, author, at, message: message || '' }; });
     },
+    /** Tệp nào đổi giữa hai commit, thêm và bớt bao nhiêu dòng: [{path, added, removed}] (tệp nhị phân: added và removed là null). */
+    async diffStat(repo, from, to) {
+      const out = git(repo, ['diff', '--numstat', '--no-renames', from, to]);
+      return out.split('\n').filter(Boolean).map((line) => { const [a, r, ...p] = line.split('\t'); return { path: p.join('\t'), added: a === '-' ? null : Number(a), removed: r === '-' ? null : Number(r) }; });
+    },
     /**
      * Trích ĐÚNG một commit ra thư mục tạm. Không đọc thư mục làm việc: tệp sửa dở và tệp chưa theo dõi không bao giờ có mặt.
      * Dùng `git archive` (không đụng index hay worktree) rồi `tar` có sẵn của hệ điều hành.

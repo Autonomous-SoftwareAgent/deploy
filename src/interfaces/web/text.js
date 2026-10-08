@@ -20,7 +20,7 @@ export const T = {
   nav: {
     label: 'Main navigation', overview: 'System overview', lastRun: 'Last viewed run', running: 'Running', configuration: 'Configuration',
     run: (r) => `${T.kind[r.kind] || r.kind} ${what(r.items.length, r.items[0].serviceId)} · ${r.environment.name}`,
-    signedIn: (who, role) => `Signed in as ${who}${role ? ` (${role})` : ''}`, signOutHint: 'To sign out, close the browser.',
+    signedIn: (who, role) => `Signed in as ${who}${role ? ` (${role})` : ''}`, signOutHint: 'To sign out, close the browser.', live: 'Live updates on', polling: 'Refreshing every few seconds',
   },
   login: {
     title: 'Sign-in required', denied: 'The browser asks for a user name and password when the page opens. The user name is admin.', retry: 'Try again',
@@ -81,6 +81,7 @@ export const T = {
     checking: 'Checking…', sending: 'Sending…', cannot: 'Cannot proceed', checkingServer: 'Checking with the server…', noResult: 'No check result yet.',
     blocked: 'blocked', warned: 'has warnings', ready: 'ready', runningOn: (env) => `Running on ${env}`, notDeployed: 'not deployed', noCommits: 'no commit to choose from',
     running: ' · running', suggestions: 'Suggestions:', removed: (n) => `${plural(n, 'commit')} will be removed`, added: (n) => `${plural(n, 'commit')} will be deployed`,
+    files: 'Show files changed', filesLoading: 'Reading the files changed…', filesTotals: (t) => `${plural(t.files, 'file')} changed, +${t.added} −${t.removed}`, binary: 'binary',
     out: 'out', in: 'in', first: 'First deploy of this service to this environment.',
     noteRollback: 'A rollback only goes back to a version that ran healthy on this same environment, and only swaps the program version: data is not rolled back.',
     noteDeploy: 'Only a commit that has an image can be deployed. If the new version is unhealthy, the previously running one is restored automatically.',

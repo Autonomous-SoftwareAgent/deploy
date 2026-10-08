@@ -6,6 +6,19 @@ import { C } from '../text-config.js';
 
 const D = T.dialog;
 
+/** Ngăn so sánh theo tệp: tệp nào đổi giữa bản đang chạy và commit đích. Chỉ nạp khi người dùng bấm xem. */
+function filesChanged(item, d, actions) {
+  if (!item.from || !item.to || item.from.sha === item.to.sha) return null;
+  const got = d.diffs[item.serviceId];
+  // Đổi commit đích thì kết quả cũ không còn đúng.
+  if (!got || got.key !== `${item.from.sha}..${item.to.sha}`) return h('div', null, h('button', { class: 'lnk', onclick: () => actions.dialogDiff(item.serviceId) }, D.files));
+  if (got.loading) return h('div', { class: 'xs mut' }, D.filesLoading);
+  if (got.error) return h('div', { class: 'xs mut' }, got.error);
+  return h('details', { class: 'chg', open: true }, h('summary', null, D.filesTotals(got.totals)),
+    h('div', { class: 'chgl' }, got.files.map((f) => h('div', null, h('span', { class: 'mono xs', css: { flex: '1 1 auto' } }, f.path),
+      f.added === null ? h('span', { class: 'xs mut' }, D.binary) : [h('span', { class: 'xs', css: { color: 'var(--ok)' } }, `+${f.added}`), h('span', { class: 'xs', css: { color: 'var(--bad)' } }, `−${f.removed}`)]))));
+}
+
 function targetCard(item, d, actions, multi) {
   const commits = d.commits[item.serviceId] || [];
   const known = new Set(commits.map((c) => c.sha));
@@ -28,6 +41,7 @@ function targetCard(item, d, actions, multi) {
     item.changes.length ? h('details', { class: 'chg', open: !multi },
       h('summary', null, back ? D.removed(item.changes.length) : D.added(item.changes.length)),
       h('div', { class: 'chgl' }, item.changes.map((c) => h('div', null, h('span', { class: `chip ${back ? 'rbk' : 'run'}` }, back ? D.out : D.in), h('span', { class: 'mono hash' }, short(c.sha)), h('span', null, c.message || ''))))) : null,
+    filesChanged(item, d, actions),
     item.firstDeploy && !blocked ? h('div', { class: 'callout info' }, D.first) : null);
 }
 

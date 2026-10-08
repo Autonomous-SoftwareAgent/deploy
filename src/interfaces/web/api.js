@@ -27,6 +27,7 @@ export const api = {
   overview: (filters) => call('GET', `/api/v1/overview${query(filters)}`),
   service: (id) => call('GET', `/api/v1/services/${encodeURIComponent(id)}`),
   serviceLogs: (id, environmentId) => call('GET', `/api/v1/services/${encodeURIComponent(id)}/logs${query({ environmentId, tail: 200 })}`),
+  serviceDiff: (id, from, to) => call('GET', `/api/v1/services/${encodeURIComponent(id)}/diff${query({ from, to })}`),
   preflight: (req) => call('POST', '/api/v1/deployments/preflight', req),
   start: (req) => call('POST', '/api/v1/deployments', req),
   run: (id) => call('GET', `/api/v1/runs/${encodeURIComponent(id)}`),

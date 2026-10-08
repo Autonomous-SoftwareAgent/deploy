@@ -13,6 +13,7 @@ export const state = {
   dialog: null, // { kind, environmentId, items: [{serviceId, targetSha}], pre, loading, error, commits: {dịch-vụ: [...]}, sending, typed }
   run: null, // { id, data, log: [], after }
   activeRuns: [],
+  live: false, // đang nhận thay đổi trực tiếp từ máy chủ; không thì trang tự hỏi lại định kỳ
 };
 
 let render = () => {};
@@ -99,13 +100,24 @@ export const actions = {
   async openDialog(kind, serviceIds, opts = {}) {
     const envs = (state.overview && state.overview.allEnvironments) || [];
     if (!serviceIds.length || !envs.length) return;
-    state.dialog = { kind, environmentId: opts.environmentId || envs[0].id, items: serviceIds.map((id) => ({ serviceId: id, targetSha: serviceIds.length === 1 ? opts.targetSha || null : null })), pre: null, loading: true, error: '', commits: {}, sending: false, typed: '' };
+    state.dialog = { kind, environmentId: opts.environmentId || envs[0].id, items: serviceIds.map((id) => ({ serviceId: id, targetSha: serviceIds.length === 1 ? opts.targetSha || null : null })), pre: null, loading: true, error: '', commits: {}, diffs: {}, sending: false, typed: '' };
     paint();
     preflight();
     // Danh sách commit để chọn commit đích: lấy một lần cho mỗi dịch vụ trong hộp thoại.
     for (const id of serviceIds) api.service(id).then((r) => { if (state.dialog && r.status === 200) { state.dialog.commits[id] = r.body.commits; paint(); } });
   },
   closeDialog() { state.dialog = null; paint(); },
+  /** Tệp đổi giữa bản đang chạy và commit đích của một mục trong hộp thoại. */
+  async dialogDiff(serviceId) {
+    const d = state.dialog; const it = d && d.pre && d.pre.items.find((x) => x.serviceId === serviceId);
+    if (!it || !it.from || !it.to) return;
+    const key = `${it.from.sha}..${it.to.sha}`;
+    d.diffs[serviceId] = { key, loading: true }; paint();
+    const r = await api.serviceDiff(serviceId, it.from.sha, it.to.sha);
+    if (state.dialog !== d) return;
+    d.diffs[serviceId] = r.status === 200 ? { key, files: r.body.files, totals: r.body.totals } : { key, error: errorOf(r) };
+    paint();
+  },
   dialogEnvironment(id) { const d = state.dialog; if (!d) return; d.environmentId = id; d.typed = ''; for (const i of d.items) i.targetSha = null; preflight(); },
   dialogTarget(serviceId, sha) { const d = state.dialog; if (!d) return; const it = d.items.find((x) => x.serviceId === serviceId); if (it) it.targetSha = sha; preflight(); },
   async confirmDialog() {
@@ -122,10 +134,30 @@ export const actions = {
     actions.openRun(r.body.runId, r.body.run);
   },
   openRun(id, data = null) { state.view = 'run'; state.run = { id, data, log: [], after: 0 }; paint(); pollRun(); loadActiveRuns(); },
-  /** Gọi định kỳ từ main.js. */
+  /**
+   * Nhận thay đổi trực tiếp: máy chủ gửi TÊN chủ đề vừa đổi, trang hỏi lại đúng phần đó. Mất kết nối thì trình duyệt tự nối lại,
+   * và trong lúc đó trang quay về hỏi định kỳ (tick). onTopic: phần cấu hình và duyệt đăng ký thêm việc của nó.
+   */
+  connectEvents(onTopic = () => {}) {
+    if (typeof EventSource === 'undefined') return;
+    const es = new EventSource('/api/v1/events');
+    let timer = null; const pending = new Set();
+    const flush = () => {
+      timer = null;
+      const topics = [...pending]; pending.clear();
+      if (topics.includes('runs')) { if (state.view === 'run') pollRun(); loadActiveRuns(); if (state.view === 'overview' && !state.dialog) loadOverview(); if (state.view === 'service' && !state.dialog) loadService(); }
+      for (const t of topics) onTopic(t);
+    };
+    es.onopen = () => { state.live = true; paint(); };
+    es.onerror = () => { if (state.live) { state.live = false; paint(); } };
+    // Gom các thay đổi dồn dập (log của một lần chạy) thành một lần hỏi lại.
+    es.onmessage = (e) => { pending.add(e.data); if (!timer) timer = setTimeout(flush, 250); };
+  },
+  /** Gọi định kỳ từ main.js. Đang nhận trực tiếp thì chỉ hỏi lại thưa hơn, phòng khi sót một tin. */
   tick(n) {
-    if (state.view === 'run' && state.run && (!state.run.data || state.run.data.status === 'running')) pollRun();
-    if (n % 5 === 0) {
+    if (!state.live && state.view === 'run' && state.run && (!state.run.data || state.run.data.status === 'running')) pollRun();
+    if (n % (state.live ? 30 : 5) === 0) {
+      if (state.live && state.view === 'run' && state.run && (!state.run.data || state.run.data.status === 'running')) pollRun();
       if (state.view === 'overview' && !state.dialog) loadOverview();
       if (state.view === 'service' && !state.dialog) loadService();
       if (state.view !== 'denied' && state.view !== 'loading') loadActiveRuns();

@@ -18,7 +18,7 @@ const refuse = (outcome, reason, extra = {}) => ({ ok: false, outcome, reason, .
  *          runStore: import('./ports').DocumentStore, clock: import('./ports').Clock, random: import('./ports').Random, onSettled?: () => void}} deps
  * executors: id môi trường -> bộ chạy việc của môi trường đó.
  */
-function makeRuns({ fleet, executors, runStore, clock, random, onSettled = () => {} }) {
+function makeRuns({ fleet, executors, runStore, clock, random, changes = { publish() {} }, onSettled = () => {} }) {
   const runs = []; // các lần chạy của lần khởi động này, mới nhất ở cuối
   let archived = null; // các lần chạy của những lần khởi động trước: [{ view, log }], cũ trước
   async function archive() {
@@ -33,6 +33,7 @@ function makeRuns({ fleet, executors, runStore, clock, random, onSettled = () =>
 
   function log(r, serviceId, level, text) {
     r.log.push({ seq: r.seq += 1, at: clock.now(), serviceId, level, text });
+    changes.publish('runs');
     if (r.log.length > LOG_KEEP) r.log.splice(0, r.log.length - LOG_KEEP);
   }
 
@@ -57,7 +58,7 @@ function makeRuns({ fleet, executors, runStore, clock, random, onSettled = () =>
     log(r, null, 'info', `Started ${kind} of ${r.items.length} service(s) on ${r.environment.name}, requested by ${by}${approvedBy ? `, approved by ${approvedBy}` : ''}.`);
     r.done = Promise.all(r.items.map((item) => {
       const onEvent = (e) => {
-        if (e.event === 'step') run.applyStep(item, e);
+        if (e.event === 'step') { run.applyStep(item, e); changes.publish('runs'); }
         else if (e.event === 'log' && typeof e.text === 'string') log(r, item.serviceId, /KHÔNG|HỎNG|hỏng/.test(e.text) ? 'error' : 'info', e.text);
       };
       return executor.run({ service: item.serviceId, action: kind, commit: item.toSha, by }, { onEvent })
@@ -67,7 +68,7 @@ function makeRuns({ fleet, executors, runStore, clock, random, onSettled = () =>
           log(r, item.serviceId, item.status === run.ITEM.SUCCEEDED ? 'success' : item.status === run.ITEM.ROLLED_BACK ? 'warn' : 'error',
             item.status === run.ITEM.SUCCEEDED ? 'Done: the new version is running and healthy.' : item.status === run.ITEM.ROLLED_BACK ? `The new version was unhealthy; the previous version was restored: ${item.reason}` : `Failed: ${item.reason}`);
         });
-    })).then(async () => { r.finishedAt = clock.now(); await save(r); onSettled(); });
+    })).then(async () => { r.finishedAt = clock.now(); await save(r); onSettled(); changes.publish('runs'); });
     await save(r);
     return { ok: true, run: view(r) };
   }

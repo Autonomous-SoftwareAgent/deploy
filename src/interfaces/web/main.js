@@ -27,7 +27,13 @@ onRender(() => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.dialog) actions.closeDialog(); });
 
 let n = 0;
-setInterval(() => { actions.tick(n += 1); if (n % 3 === 0 && state.view === 'config' && state.cfg.tab === 'environments') actions.pollEnvironments(); if (n % 10 === 0 && state.view !== 'denied' && state.view !== 'loading') actions.loadApprovals(); }, 1000);
-actions.boot().then(() => { actions.loadMe(); actions.loadApprovals(); });
+setInterval(() => { actions.tick(n += 1); if (n % 3 === 0 && state.view === 'config' && state.cfg.tab === 'environments') actions.pollEnvironments(); if (n % (state.live ? 60 : 10) === 0 && state.view !== 'denied' && state.view !== 'loading') actions.loadApprovals(); }, 1000);
+actions.boot().then(() => {
+  actions.loadMe(); actions.loadApprovals();
+  actions.connectEvents((topic) => {
+    if (topic === 'approvals') actions.loadApprovals();
+    if (topic === 'environments' && state.view === 'config' && state.cfg.tab === 'environments') actions.pollEnvironments(true);
+  });
+});
 // Rời trang khi bản nháp cấu hình chưa lưu: để trình duyệt hỏi lại.
 window.addEventListener('beforeunload', (e) => { if (isDirty()) e.preventDefault(); });

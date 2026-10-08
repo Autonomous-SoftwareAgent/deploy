@@ -56,6 +56,13 @@ function makeMemoryPlatform(world) {
       return found[0];
     },
     async subject(repo, commit) { return `commit ${commit.slice(0, 7)} (trong bộ nhớ)`; },
+    // Dữ liệu mẫu: mỗi commit nằm giữa hai đầu mút đổi một tệp.
+    async diffStat(repo, from, to) {
+      const shas = (repoOf(repo).history || []).map((c) => c.sha);
+      const a = shas.indexOf(from); const b = shas.indexOf(to);
+      if (a < 0 || b < 0) throw new Error('commit không có trong lịch sử mẫu');
+      return shas.slice(Math.min(a, b), Math.max(a, b)).map((sha, i) => ({ path: `src/sample-${sha.slice(0, 4)}.js`, added: 10 + i, removed: i }));
+    },
     async log(repo, limit) { return (repoOf(repo).history || []).slice(0, limit).map((c) => ({ ...c })); },
     async extract(repo, commit, key) {
       if (!COMMIT_RE.test(commit)) throw new Error('extract cần mã commit đủ 40 ký tự');

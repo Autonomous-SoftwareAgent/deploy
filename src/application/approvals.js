@@ -14,10 +14,10 @@ const refuse = (outcome, reason, extra = {}) => ({ ok: false, outcome, reason, .
  * @param {{runs: ReturnType<import('./runs').makeRuns>, settings: {get: Function}, audit: {record: Function},
  *          approvalStore: import('./ports').DocumentStore, clock: import('./ports').Clock, random: import('./ports').Random}} deps
  */
-function makeApprovals({ runs, settings, audit, approvalStore, clock, random }) {
+function makeApprovals({ runs, settings, audit, approvalStore, clock, random, changes = { publish() {} } }) {
   let list = null; // mới nhất ở cuối; nạp từ nơi lưu ở lần dùng đầu
   const load = async () => { if (!list) list = await approvalStore.recent(KEEP); return list; };
-  const keep = (a) => approvalStore.put(a);
+  const keep = async (a) => { await approvalStore.put(a); changes.publish('approvals'); };
   const names = (items) => items.map((i) => i.serviceId).join(', ');
   const view = (a) => ({ id: a.id, kind: a.kind, environment: a.environment, items: a.items, requestedBy: a.actor.name, requestedAt: a.requestedAt, expiresAt: new Date(a.expiresAtMs).toISOString(), status: a.status, decidedBy: a.decidedBy || null, decidedAt: a.decidedAt || null, runId: a.runId || null });
   async function expire() { for (const a of await load()) if (a.status === STATUS.PENDING && a.expiresAtMs <= clock.millis()) { a.status = STATUS.EXPIRED; await keep(a); } }
