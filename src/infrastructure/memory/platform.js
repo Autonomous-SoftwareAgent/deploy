@@ -34,6 +34,7 @@ function makeMemoryPlatform(world) {
 
   const registry = {
     async lookup(remote) { return world.published.has(remote) ? { present: true, reason: '' } : { present: false, reason: 'manifest unknown' }; },
+    async tags(repository) { return [...world.published.keys()].filter((r) => r.startsWith(`${repository}:`)).map((r) => r.slice(repository.length + 1)); },
   };
 
   const repoOf = (repo) => { const r = world.repos.get(repo); if (!r) throw new Error(`không có repo ${repo}`); return r; };
@@ -49,6 +50,7 @@ function makeMemoryPlatform(world) {
       return found[0];
     },
     async subject(repo, commit) { return `commit ${commit.slice(0, 7)} (trong bộ nhớ)`; },
+    async log(repo, limit) { return (repoOf(repo).history || []).slice(0, limit).map((c) => ({ ...c })); },
     async extract(repo, commit, key) {
       if (!COMMIT_RE.test(commit)) throw new Error('extract cần mã commit đủ 40 ký tự');
       if (!repoOf(repo).commits.has(commit)) throw new Error(`git archive ${commit.slice(0, 12)}: không có commit`);

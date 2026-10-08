@@ -28,6 +28,12 @@ function makeGitSource({ layout, run }) {
       return full;
     },
     async subject(repo, commit) { return git(repo, ['log', '-1', '--format=%s', commit]); },
+    /** Lịch sử của nhánh đang lấy ra, mới trước. Các trường cách nhau bằng ký tự 0x1f, không thể có trong tên hay lời nhắn một dòng. */
+    async log(repo, limit) {
+      const n = Math.max(1, Math.min(500, Number(limit) || 50));
+      const out = git(repo, ['log', '-n', String(n), '--format=%H%x1f%an%x1f%aI%x1f%s']);
+      return out.split('\n').filter(Boolean).map((line) => { const [sha, author, at, message] = line.split('\x1f'); return { sha, author, at, message: message || '' }; });
+    },
     /**
      * Trích ĐÚNG một commit ra thư mục tạm. Không đọc thư mục làm việc: tệp sửa dở và tệp chưa theo dõi không bao giờ có mặt.
      * Dùng `git archive` (không đụng index hay worktree) rồi `tar` có sẵn của hệ điều hành.

@@ -12,7 +12,7 @@ const PLATFORM = { schema: 1, github: { org: 'mau', platformRepo: 'deploy', serv
 function emptyWorld() {
   return {
     manifest: { schema: 1, services: {}, platform: PLATFORM },
-    repos: new Map(), // đường dẫn repo -> { head, commits: Set, dirty }
+    repos: new Map(), // đường dẫn repo -> { head, commits: Set, dirty, history: [{sha, message, author, at}] mới trước }
     published: new Map(), // tên bản trên kho -> commit ghi bên trong
     images: new Map(), // nhãn bản ở máy -> commit ghi bên trong
     running: new Map(), // tên container -> { commit, status, port }
@@ -32,11 +32,16 @@ function emptyWorld() {
   };
 }
 
-/** Thêm một dịch vụ đang chạy khỏe ở commit `running`, đã khai commit `declared`; `published` là các commit đã có bản trên kho. */
-function addService(world, name, { declared, running, published = [], port }) {
+/**
+ * Thêm một dịch vụ đang chạy khỏe ở commit `running`, đã khai commit `declared`; `published` là các commit đã có bản trên kho.
+ * Lịch sử của repo: `history` (mới trước) nếu truyền, không thì suy ra: commit đã khai là đầu nhánh, bản đang chạy nằm dưới.
+ */
+function addService(world, name, { declared, running, published = [], port, project, history }) {
   const repo = `mau/${name}`;
-  world.manifest.services[name] = { repo, commit: declared, port: { local: port, container: 8080 }, health: '/health' };
-  world.repos.set(repo, { head: declared, commits: new Set([declared, running, ...published]), dirty: 0 });
+  world.manifest.services[name] = { repo, commit: declared, port: { local: port, container: 8080 }, health: '/health', ...(project ? { project } : {}) };
+  const order = history || [...new Set([declared, ...published.filter((c) => c !== declared && c !== running).reverse(), running])];
+  const log = order.map((sha, i) => ({ sha, message: `thay đổi mẫu ${order.length - i} của ${name}`, author: 'Người Mẫu', at: new Date(Date.parse('2025-12-31T00:00:00Z') - i * 3600000).toISOString() }));
+  world.repos.set(repo, { head: declared, commits: new Set([declared, running, ...published, ...order]), dirty: 0, history: log });
   for (const c of published) world.published.set(remoteImage(PLATFORM, name, c), c);
   world.images.set(localImage(name, running), running);
   world.running.set(containerName(name), { commit: running, status: 'Up (trong bộ nhớ)', port });
@@ -48,9 +53,9 @@ function addService(world, name, { declared, running, published = [], port }) {
 function sampleWorld({ delayMs = 0 } = {}) {
   const w = emptyWorld();
   w.delayMs = delayMs;
-  addService(w, 'mau-tot', { declared: commit('b'), running: commit('a'), published: [commit('a'), commit('b')], port: 8000 });
-  addService(w, 'mau-hong', { declared: BROKEN, running: commit('c'), published: [commit('c'), BROKEN], port: 8001 });
-  addService(w, 'mau-cho-build', { declared: commit('e'), running: commit('d'), published: [commit('d')], port: 8002 });
+  addService(w, 'mau-tot', { declared: commit('b'), running: commit('a'), published: [commit('a'), commit('b')], port: 8000, project: 'Nhóm mẫu A' });
+  addService(w, 'mau-hong', { declared: BROKEN, running: commit('c'), published: [commit('c'), BROKEN], port: 8001, project: 'Nhóm mẫu A' });
+  addService(w, 'mau-cho-build', { declared: commit('e'), running: commit('d'), published: [commit('d')], port: 8002, project: 'Nhóm mẫu B' });
   w.unhealthy.add(BROKEN);
   return w;
 }

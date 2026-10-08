@@ -21,10 +21,10 @@ Người dùng giao ngày 2026-10-08: "làm toàn bộ cho bản design này, c�
 Mỗi đợt xong thì cập nhật ô dưới đây, README và STATUS.
 
 ### Đợt A: khung giao diện mới trên dữ liệu thật
-- [ ] A1. Luật và ca sử dụng: danh sách môi trường; một bảng điều khiển nhìn nhiều môi trường; lịch sử commit của dịch vụ (cổng Source thêm `log`); bản nào đã có trên kho (cổng Registry thêm `tags`); nhóm dự án (trường `project` trong tờ khai báo, thêm vào, tờ cũ vẫn đọc được).
-- [ ] A2. `deploy <dịch-vụ> [commit]`: deploy đúng commit được chọn (phải có bản); đích từ xa nhận cùng tham số.
+- [ ] A1. Luật và ca sử dụng: danh sách môi trường; một bảng điều khiển nhìn nhiều môi trường. ĐÃ XONG phần cổng (2026-10-08): `Source.log`, `Registry.tags`, trường `project` trong tờ khai báo, dữ liệu mẫu trong bộ nhớ có lịch sử commit.
+- [x] A2. `deploy <dịch-vụ> [commit]`: deploy đúng commit được chọn (phải có bản), không sửa tờ khai báo. CÒN: đích từ xa nhận cùng tham số (`remote-target.js` hiện chỉ cho commit với rollback).
 - [ ] A3. Kiểm tra trước (preflight): từ bản nào sang bản nào, các commit ở giữa và hướng, mã chặn `ALREADY_RUNNING`, `BUILD_NOT_READY`, `NOTHING_TO_ROLLBACK`, `ROLLBACK_TARGET_NEWER`, `RUN_IN_PROGRESS`; cảnh báo `DEPLOY_OLDER_COMMIT`.
-- [ ] A4. Lần chạy (run) gồm nhiều mục, mỗi mục một dịch vụ, chạy độc lập; bước và log đến dần (lệnh điều khiển in sự kiện dạng JSON từng dòng, bộ chạy việc đọc dần).
+- [ ] A4. Lần chạy (run) gồm nhiều mục, mỗi mục một dịch vụ, chạy độc lập; bước và log đến dần. ĐÃ XONG phần lệnh (2026-10-08): `--json --events` in từng dòng `{event:"step",step,status,phase}` và `{event:"log",text}`; các bước là `fetch`, `start`, `health`, `record` (hằng `STEPS` trong `switch-version.js`), pha `forward` hoặc `revert`. CÒN: bộ chạy việc (tiến trình con, đích từ xa, gọi thẳng) đọc dần các dòng đó; ca sử dụng run.
 - [ ] A5. Đường `/api/v1`: `overview`, `services/{id}`, `services/{id}/environments`, `services/{id}/commits`, `services/{id}/deployments`, `services/{id}/diff`, `deployments/preflight`, `deployments`, `runs`, `runs/{id}`, `runs/{id}/cancel`. Đường `/api` cũ giữ nguyên.
 - [ ] A6. Giao diện: thanh bên, Tổng quan, Chi tiết dịch vụ (tab Deployments, Commits; các tab chưa có nguồn ghi rõ), hộp thoại Deploy và Rollback, Tiến trình.
 - [ ] A7. Đăng nhập bằng hộp thoại của trình duyệt (HTTP Basic) thay trang đăng nhập; agent vẫn dùng token.

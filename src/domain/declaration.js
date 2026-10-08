@@ -46,6 +46,8 @@ function serviceErrors(name, svc, ctx) {
     if (!Number.isInteger(svc.port.container) || svc.port.container < 1) errs.push(`${at}.port.container: phải là số nguyên dương`);
   }
   if (typeof svc.health !== 'string' || !svc.health.startsWith('/')) errs.push(`${at}.health: phải là đường dẫn bắt đầu bằng /`);
+  // Nhóm dự án (tùy chọn): chỉ để bảng điều khiển gom dịch vụ; nền không dựa vào nó để làm gì khác.
+  if (svc.project !== undefined && (typeof svc.project !== 'string' || !svc.project.trim() || svc.project.length > 60 || /[\r\n]/.test(svc.project))) errs.push(`${at}.project: phải là một dòng chữ không rỗng, tối đa 60 ký tự`);
   for (const [k, v] of Object.entries(svc.env || {})) {
     if (!ENV_RE.test(k)) errs.push(`${at}.env: tên biến ${k} không hợp lệ`);
     if (typeof v !== 'string') errs.push(`${at}.env.${k}: giá trị phải là chuỗi (bí mật thì khai tên ở secretEnv)`);

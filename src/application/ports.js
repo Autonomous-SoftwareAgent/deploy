@@ -20,6 +20,7 @@
  * @property {(repo: string) => Promise<number>} dirtyCount
  * @property {(repo: string, ref: string) => Promise<string>} resolve  ném lỗi nếu không có commit đó
  * @property {(repo: string, commit: string) => Promise<string>} subject
+ * @property {(repo: string, limit: number) => Promise<Array<{sha: string, message: string, author: string, at: string}>>} log  lịch sử của nhánh đang lấy ra, mới trước
  * @property {(repo: string, commit: string, key: string) => Promise<string>} extract  trích đúng commit, trả thư mục
  * @property {(dir: string) => Promise<void>} discard
  *
@@ -42,6 +43,7 @@
  *
  * @typedef {object} Registry  Kho bản đóng gói.
  * @property {(remote: string) => Promise<{present: boolean, reason: string}>} lookup
+ * @property {(repository: string) => Promise<string[]|null>} tags  mọi nhãn của một kho ("tài-khoản/tên"); không hỏi được: null
  *
  * @typedef {object} SharedTier  Tầng dùng chung: PostgreSQL, broker, mạng.
  * @property {() => Promise<void>} ensureUp
@@ -92,10 +94,10 @@
 /** Tên hàm của từng cổng: bộ test hợp đồng và composition dùng để kiểm một bộ nối có đủ hàm không. */
 const PORTS = Object.freeze({
   declarations: ['load', 'save'],
-  source: ['has', 'anyPresent', 'head', 'dirtyCount', 'resolve', 'subject', 'extract', 'discard'],
+  source: ['has', 'anyPresent', 'head', 'dirtyCount', 'resolve', 'subject', 'log', 'extract', 'discard'],
   configFiles: ['stale', 'install', 'hostPath'],
   runtime: ['list', 'runningCommit', 'hasImage', 'imageCommit', 'pull', 'tag', 'build', 'applyStack', 'hasStack', 'removeStack'],
-  registry: ['lookup'],
+  registry: ['lookup', 'tags'],
   sharedTier: ['ensureUp', 'ensureDatabase', 'ensureTopics', 'down'],
   secrets: ['ensure'],
   ledger: ['read', 'append'],

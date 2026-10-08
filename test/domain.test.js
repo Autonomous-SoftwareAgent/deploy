@@ -79,3 +79,25 @@ test('đặt tên: bản ở máy, bản trên kho, và commit đọc từ nhãn
   assert.equal(naming.commitFromLabels('<no value>', B), B);
   assert.equal(naming.commitFromLabels('', 'rác'), '');
 });
+
+test('tờ khai báo: trường project (nhóm dự án) là tùy chọn; có thì phải là một dòng chữ ngắn', () => {
+  const { validate } = require('../src/domain/declaration');
+  const svc = (project) => ({ schema: 1, platform: null, services: { shop: { repo: 'system_service/shop', commit: null, port: { local: 8000, container: 8080 }, health: '/health', ...(project === undefined ? {} : { project }) } } });
+  assert.deepEqual(validate(svc(undefined)), []);
+  assert.deepEqual(validate(svc('Thanh toán')), []);
+  for (const bad of ['', '   ', 5, 'a'.repeat(61), 'hai\ndòng']) assert.match(validate(svc(bad)).join('\n'), /project/);
+});
+
+test('cổng Registry.tags: gom mọi trang; kho chưa có là danh sách rỗng; lỗi mạng hay tên kho lạ là null', async () => {
+  const { makeDockerRegistry } = require('../src/infrastructure/docker-registry');
+  const pages = {
+    'https://hub.docker.com/v2/repositories/acme/svc-shop/tags?page_size=100': { status: 200, body: { results: [{ name: 'main-aaaaaaaaaaaa' }], next: 'https://hub.docker.com/v2/repositories/acme/svc-shop/tags?page=2' } },
+    'https://hub.docker.com/v2/repositories/acme/svc-shop/tags?page=2': { status: 200, body: { results: [{ name: 'main-bbbbbbbbbbbb' }], next: null } },
+    'https://hub.docker.com/v2/repositories/acme/svc-moi/tags?page_size=100': { status: 404, body: {} },
+  };
+  const reg = makeDockerRegistry({ run: () => ({ status: 1, stdout: '', stderr: '' }), getJson: async (url) => { if (!pages[url]) throw new Error('mạng rớt'); return pages[url]; } });
+  assert.deepEqual(await reg.tags('acme/svc-shop'), ['main-aaaaaaaaaaaa', 'main-bbbbbbbbbbbb']);
+  assert.deepEqual(await reg.tags('acme/svc-moi'), []);
+  assert.equal(await reg.tags('acme/svc-khac'), null);
+  assert.equal(await reg.tags('../etc'), null);
+});

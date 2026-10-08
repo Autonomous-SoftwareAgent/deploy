@@ -346,3 +346,13 @@ test('--events khi bản mới không khỏe: bước kiểm sức khỏe báo h
   assert.ok(steps.includes('revert:health:succeeded'), 'bản cũ được bật lại và khỏe');
   assert.equal(w.running.get('bsn-shop'), ws.c[0]);
 });
+
+test('cổng Source.log trên repo thật: lịch sử mới trước, đủ mã commit, lời nhắn, người viết, thời điểm', async (t) => {
+  const ws = makeWorkspace(t);
+  const log = await localPorts({ root: ws.root }).source.log('system_service/shop', 10);
+  assert.deepEqual(log.map((c) => c.sha), [ws.c[2], ws.c[1], ws.c[0]]);
+  assert.deepEqual(log.map((c) => c.message), ['v3', 'v2', 'v1']);
+  assert.equal(log[0].author, 't');
+  assert.ok(!Number.isNaN(Date.parse(log[0].at)));
+  assert.equal((await localPorts({ root: ws.root }).source.log('system_service/shop', 2)).length, 2);
+});
