@@ -14,8 +14,9 @@ function makeRemoteJobExecutor({ shell, random, root, pollMs = 3000, maxPolls = 
   const fail = (service, action, reason) => ({ ok: false, service, action, reason });
 
   return {
-    async run({ service, action, commit, by }) {
+    async run({ service, action, commit, by }, { onEvent } = {}) {
       const id = random.bytes(8).toString('hex');
+      let seen = 0; // số dòng sự kiện đã báo: mỗi lần hỏi máy đích trả lại cả đầu ra từ đầu
       const started = await shell.exec(sh.start({ id, action, service, commit, by }));
       if (!jsonLines(started.stdout).some((o) => o.started === id)) {
         return fail(service, action, `không bắt đầu được việc trên máy đích (mã thoát ${started.code}): ${(started.stderr || started.stdout).trim().split('\n').slice(-3).join(' ')}`);
@@ -25,13 +26,16 @@ function makeRemoteJobExecutor({ shell, random, root, pollMs = 3000, maxPolls = 
         await sleep(pollMs);
         const res = await shell.exec(sh.poll(id));
         const lines = jsonLines(res.stdout);
+        const events = lines.filter((o) => typeof o.event === 'string');
+        if (onEvent) for (const e of events.slice(seen)) onEvent(e);
+        seen = Math.max(seen, events.length);
         const mark = lines.find((o) => typeof o.done === 'boolean');
         // Không hỏi được (mạng rớt): việc vẫn đang chạy ở máy đích, cứ hỏi lại; chỉ bỏ cuộc sau nhiều lần liên tiếp.
         if (!mark) { if (++lost >= 10) return fail(service, action, `mất liên lạc với máy đích khi đang chờ việc ${id}; việc có thể vẫn đang chạy ở đó: xem trạng thái trước khi bấm lại`); continue; }
         lost = 0;
         if (!mark.done) continue;
         onSettled();
-        const result = lines.find((o) => o !== mark && typeof o.ok === 'boolean');
+        const result = lines.find((o) => o !== mark && typeof o.ok === 'boolean' && typeof o.event !== 'string');
         const err = (/ERR: (.*)$/m.exec(res.stdout) || [])[1] || '';
         return result || fail(service, action, `lệnh trên máy đích không trả kết quả (mã thoát ${mark.code}): ${err.trim()}`);
       }

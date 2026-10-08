@@ -51,7 +51,7 @@ test('đoạn lệnh gửi sang máy đích: từ chối mọi giá trị sai d�
   const sh = scripts('/opt/bsn');
   const ok = { id: 'abababababababab', action: 'deploy', service: 'shop', by: 'admin' };
   const start = sh.start(ok);
-  assert.match(start, /setsid nohup sh -c 'BSN_ACTOR=admin node infra\/bsn\.js deploy shop --apply --json > .*abababababababab\.out/);
+  assert.match(start, /setsid nohup sh -c 'BSN_ACTOR=admin node infra\/bsn\.js deploy shop --apply --json --events > .*abababababababab\.out/);
   assert.match(start, /echo \$\? > \/opt\/bsn\/infra\/local\/\.run\/jobs\/abababababababab\.code/);
   assert.match(sh.start({ ...ok, action: 'rollback', commit: 'abc1234' }), /rollback shop abc1234 --apply/);
   for (const bad of [{ service: 'shop; id' }, { service: '$(id)' }, { action: 'up' }, { by: 'a b' }, { by: "x'y" }, { id: '../x' }, { commit: 'abc; id' }, { commit: 'xyz' }]) {
@@ -175,7 +175,7 @@ function loopbackShell(world) {
     exec: async (script) => {
       if (script.endsWith('status --json')) return { code: 0, stdout: JSON.stringify(await app.getStatus({ manifest: await manifest() })), stderr: '' };
       if (script.endsWith('images --json')) return { code: 0, stdout: JSON.stringify(await app.getImages({ manifest: await manifest() })), stderr: '' };
-      const start = /BSN_ACTOR=(\S+) node infra\/bsn\.js (deploy|rollback) (\S+?)(?: ([0-9a-f]+))? --apply --json > \S+\/([a-f0-9]+)\.out/.exec(script);
+      const start = /BSN_ACTOR=(\S+) node infra\/bsn\.js (deploy|rollback) (\S+?)(?: ([0-9a-f]+))? --apply --json --events > \S+\/([a-f0-9]+)\.out/.exec(script);
       if (start) {
         const [, by, action, name, ref, id] = start;
         const log = [];
@@ -228,4 +228,20 @@ test('đầu-cuối: bảng điều khiển ở máy này, hệ ở máy đích:
   assert.equal(world.manifest.services['mau-tot'].commit, commit('a'), 'tờ khai báo được ghi lại TRÊN MÁY ĐÍCH');
   assert.equal((await call('POST', '/api/services/khong-co/deploy', {})).status, 404);
   assert.equal((await call('GET', '/api/state')).body.services[0].runningCommit, commit('a'), 'trạng thái đọc lại ngay sau khi việc xong');
+});
+
+test('đích từ xa: mỗi lần hỏi máy đích trả cả đầu ra từ đầu, bộ chạy việc chỉ báo các sự kiện MỚI', async () => {
+  const { makeRemoteJobExecutor } = require('../src/application/remote-jobs');
+  const e1 = JSON.stringify({ event: 'step', step: 'fetch', status: 'running', phase: 'forward' });
+  const e2 = JSON.stringify({ event: 'log', text: 'đã kéo bản' });
+  const result = JSON.stringify({ ok: true, service: 'shop', action: 'deploy' });
+  const outs = [`${e1}\n\n{"done":false}\n`, `${e1}\n${e2}\n\n{"done":false}\n`, `${e1}\n${e2}\n${result}\n\n{"done":true,"code":0}\nERR: \n`];
+  let n = 0;
+  const shell = { exec: async (script) => (script.includes('setsid') ? { code: 0, stdout: /"started":"([a-f0-9]+)"/.exec(script) ? `{"started":"${/"started":"([a-f0-9]+)"/.exec(script)[1]}"}` : '', stderr: '' } : { code: 0, stdout: outs[Math.min(n++, outs.length - 1)], stderr: '' }) };
+  const seen = [];
+  const ex = makeRemoteJobExecutor({ shell, random: { bytes: (k) => Buffer.alloc(k, 0xab) }, root: '/opt/bsn', pollMs: 1, sleep: async () => {} });
+  const res = await ex.run({ service: 'shop', action: 'deploy', by: 'admin' }, { onEvent: (e) => seen.push(e) });
+  assert.equal(res.ok, true);
+  assert.equal(res.event, undefined);
+  assert.deepEqual(seen.map((e) => e.event + ':' + (e.step || e.text)), ['step:fetch', 'log:đã kéo bản'], 'không báo lặp sự kiện cũ');
 });

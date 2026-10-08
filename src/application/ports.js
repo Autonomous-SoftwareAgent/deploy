@@ -88,7 +88,8 @@
  * @property {(script: string) => Promise<{code: number, stdout: string, stderr: string}>} exec
  *
  * @typedef {object} JobExecutor  Chạy một việc deploy hay rollback tới cuối, trả kết quả của ca sử dụng.
- * @property {(job: {service: string, action: string, commit?: string, by: string}) => Promise<object>} run
+ * @property {(job: {service: string, action: string, commit?: string, by: string}, watch?: {onEvent?: (e: object) => void}) => Promise<object>} run
+ *   onEvent nhận dần {event:'step', step, status, phase} và {event:'log', text} trong lúc việc chạy (không bắt buộc bộ nối phải báo)
  */
 
 /** Tên hàm của từng cổng: bộ test hợp đồng và composition dùng để kiểm một bộ nối có đủ hàm không. */

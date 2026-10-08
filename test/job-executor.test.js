@@ -73,3 +73,29 @@ test('gọi thẳng: chạy ca sử dụng trong tiến trình này, gom lời d
   assert.deepEqual(await ex.run({ service: 'shop', action: 'rollback', commit: 'abc1234', by: 'agent' }), { ok: false, reason: 'x', log: [] });
   assert.deepEqual(seen, [['deploy', 'shop', true, 'agent', 7], ['rollback', 'shop', 'abc1234']]);
 });
+
+// --- Tiến trình đến dần (đợt A4): bộ chạy việc báo từng bước và từng dòng qua onEvent ---
+
+test('tiến trình con: có onEvent thì gọi lệnh kèm --events và báo dần từng dòng sự kiện, kể cả khi dữ liệu đến bị cắt giữa dòng', async (t) => {
+  const dir = workdir(t);
+  const entry = path.join(dir, 'entry.js');
+  // In một sự kiện thành hai mảnh để kiểm việc ghép dòng, một dòng chữ thường, rồi kết quả.
+  fs.writeFileSync(entry, "const w=(s)=>process.stdout.write(s);w('{\"event\":\"step\",\"step\":\"fetch\",');setTimeout(()=>{w('\"status\":\"running\",\"phase\":\"forward\"}\\n');w('dòng thường\\n');w(JSON.stringify({event:'log',text:'xin chào'})+'\\n');w(JSON.stringify({ok:true,argv:process.argv.slice(2)})+'\\n');},50);\n");
+  const seen = [];
+  const res = await makeChildProcessJobExecutor({ entry, cwd: dir }).run({ service: 'shop', action: 'deploy', commit: 'abc1234', by: 'admin' }, { onEvent: (e) => seen.push(e) });
+  assert.deepEqual(res.argv, ['deploy', 'shop', 'abc1234', '--apply', '--json', '--events']);
+  assert.deepEqual(seen, [{ event: 'step', step: 'fetch', status: 'running', phase: 'forward' }, { event: 'log', text: 'xin chào' }]);
+  assert.equal(res.ok, true, 'kết quả vẫn là đối tượng cuối, không phải một sự kiện');
+});
+
+test('gọi thẳng: báo dòng diễn giải và bước qua onEvent; deploy nhận commit được chọn', async () => {
+  const seen = []; const got = [];
+  const use = {
+    loadManifest: async () => ({ services: { shop: {} } }),
+    deploy: async (input) => { got.push(input.commit); input.say('đang làm'); input.step('health', 'running', 'forward'); return { ok: true }; },
+    rollback: async () => ({ ok: true }),
+  };
+  await makeDirectJobExecutor({ use }).run({ service: 'shop', action: 'deploy', commit: 'c'.repeat(40), by: 'agent' }, { onEvent: (e) => seen.push(e) });
+  assert.deepEqual(got, ['c'.repeat(40)]);
+  assert.deepEqual(seen, [{ event: 'log', text: 'đang làm' }, { event: 'step', step: 'health', status: 'running', phase: 'forward' }]);
+});

@@ -29,13 +29,13 @@ function scripts(root) {
     start({ id, action, service, commit, by }) {
       if (!JOB_RE.test(id) || !['deploy', 'rollback'].includes(action) || !NAME_RE.test(service) || !ACTOR_RE.test(by)) throw new Error('tham số của việc không hợp lệ');
       if (commit && !(COMMIT_RE.test(commit) || COMMIT_PREFIX_RE.test(commit))) throw new Error('mã commit không hợp lệ');
-      const run = `BSN_ACTOR=${by} node infra/bsn.js ${action} ${service}${commit ? ` ${commit}` : ''} --apply --json > ${jobs}/${id}.out 2> ${jobs}/${id}.err; echo $? > ${jobs}/${id}.code`;
+      const run = `BSN_ACTOR=${by} node infra/bsn.js ${action} ${service}${commit ? ` ${commit}` : ''} --apply --json --events > ${jobs}/${id}.out 2> ${jobs}/${id}.err; echo $? > ${jobs}/${id}.code`;
       return `mkdir -p ${jobs} && cd ${root} && (setsid nohup sh -c '${run}' > /dev/null 2>&1 < /dev/null &) && echo '{"started":"${id}"}'`;
     },
-    /** Việc xong chưa: có tệp .code thì in mã thoát, đầu ra và mấy dòng lỗi cuối; chưa thì in dấu đang chạy. */
+    /** Việc xong chưa: luôn in đầu ra đã có (các dòng sự kiện đến dần); có tệp .code thì in thêm mã thoát và mấy dòng lỗi cuối. */
     poll(id) {
       if (!JOB_RE.test(id)) throw new Error('mã việc không hợp lệ');
-      return `if [ -f ${jobs}/${id}.code ]; then echo "{\\"done\\":true,\\"code\\":$(cat ${jobs}/${id}.code)}"; cat ${jobs}/${id}.out; echo; echo "ERR: $(tail -n 4 ${jobs}/${id}.err | tr '\\n' ' ')"; else echo '{"done":false}'; fi`;
+      return `cat ${jobs}/${id}.out 2>/dev/null; echo; if [ -f ${jobs}/${id}.code ]; then echo "{\\"done\\":true,\\"code\\":$(cat ${jobs}/${id}.code)}"; echo "ERR: $(tail -n 4 ${jobs}/${id}.err | tr '\\n' ' ')"; else echo '{"done":false}'; fi`;
     },
   };
 }
