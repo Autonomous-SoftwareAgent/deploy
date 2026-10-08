@@ -1,5 +1,6 @@
 // Trạng thái của trang và mọi thao tác đổi nó. Màn hình chỉ đọc `state` và gọi `actions`; không màn nào tự gọi máy chủ.
 import { api, errorOf } from './api.js';
+import { T } from './text.js';
 
 export const state = {
   view: 'loading', // loading | login | overview | service | run
@@ -79,7 +80,7 @@ export const actions = {
   async boot() { paint(true); await loadOverview(); await loadActiveRuns(); },
   async login(password) {
     const r = await api.login(password);
-    if (r.status !== 200) { state.loginError = r.status === 429 ? 'Sai quá nhiều lần, chờ một phút rồi thử lại.' : 'Mật khẩu không đúng.'; return paint(true); }
+    if (r.status !== 200) { state.loginError = r.status === 429 ? T.login.locked : T.login.wrong; return paint(true); }
     state.loginError = ''; state.view = 'loading'; paint();
     await actions.boot();
   },

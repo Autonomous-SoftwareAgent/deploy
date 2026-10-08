@@ -136,7 +136,7 @@ function buildLocalConsole({ root, entry, port, sshBin }) {
   const jobExecutor = makeChildProcessJobExecutor({ entry, cwd: root });
   const board = assembleConsole(app, { credentials: makeFsCredentials({ dir: ports.layout.run }), jobExecutor, clock: ports.clock });
   // Môi trường: máy này, cộng mọi đích từ xa đã khai ở targets/. Tờ khai đích sai thì bỏ qua đích đó, không làm hỏng cả bảng.
-  const members = [{ id: 'local', name: 'local', kind: 'local', description: 'Hệ chạy trên chính máy này', check: app.check, getStatus: app.getStatus, jobExecutor }];
+  const members = [{ id: 'local', name: 'local', kind: 'local', description: 'The stack running on this machine', check: app.check, getStatus: app.getStatus, jobExecutor }];
   const targets = makeFsTargets({ layout: ports.layout });
   const skipped = [];
   for (const name of targets.names()) {
@@ -162,8 +162,8 @@ function buildMemoryConsole({ world = sampleWorld({ delayMs: 2500 }), port, imag
   const app2 = assemble(second);
   const direct = (p, a) => makeDirectJobExecutor({ use: { loadManifest: () => p.declarations.load(), deploy: a.deploy, rollback: a.rollback }, seconds: 2 });
   const many = assembleFleet([
-    { id: 'mau-thu', name: 'mau-thu', kind: 'memory', description: 'Môi trường mẫu trong bộ nhớ', check: app.check, getStatus: app.getStatus, jobExecutor: direct(ports, app) },
-    { id: 'mau-that', name: 'mau-that', kind: 'memory', description: 'Môi trường mẫu thứ hai trong bộ nhớ', check: app2.check, getStatus: app2.getStatus, jobExecutor: direct(second, app2) },
+    { id: 'mau-thu', name: 'mau-thu', kind: 'memory', description: 'Sample environment held in memory', check: app.check, getStatus: app.getStatus, jobExecutor: direct(ports, app) },
+    { id: 'mau-that', name: 'mau-that', kind: 'memory', description: 'Second sample environment held in memory', check: app2.check, getStatus: app2.getStatus, jobExecutor: direct(second, app2) },
   ], { check: app.check, source: ports.source, registry: ports.registry, clock: ports.clock, random: ports.random || systemRandom });
   const full = { ...board, ...many };
   return { ...full, app, world, worlds: [world, second.world], server: makeHttpServer(full, { port, memory: true }) };

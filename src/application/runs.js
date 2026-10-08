@@ -30,14 +30,14 @@ function makeRuns({ fleet, executors, clock, random, onSettled = () => {} }) {
     const pre = await fleet.preflight({ kind, environmentId, items });
     if (!pre.ok) return pre;
     const busy = pre.items.find((i) => active(environmentId, i.serviceId));
-    if (busy) return refuse(OUTCOME.BUSY, `${busy.serviceId} đang có một lần chạy dở ở ${pre.environment.name}`, { preflight: pre });
-    if (!pre.canProceed) return refuse('BLOCKED', 'có mục bị chặn; không mục nào được chạy', { preflight: pre });
+    if (busy) return refuse(OUTCOME.BUSY, `${busy.serviceId} already has a run in progress on ${pre.environment.name}`, { preflight: pre });
+    if (!pre.canProceed) return refuse('BLOCKED', 'at least one item is blocked; nothing was started', { preflight: pre });
     const executor = executors.get(environmentId);
-    if (!executor) return refuse('UNKNOWN_ENVIRONMENT', `môi trường ${environmentId} không nhận lệnh`);
+    if (!executor) return refuse('UNKNOWN_ENVIRONMENT', `environment ${environmentId} does not accept commands`);
     const r = { id: random.bytes(6).toString('hex'), kind, environment: { id: pre.environment.id, name: pre.environment.name }, by, startedAt: clock.now(), finishedAt: null, seq: 0, log: [], items: pre.items.map((i) => run.newItem({ serviceId: i.serviceId, fromSha: i.from && i.from.sha, toSha: i.to.sha })) };
     runs.push(r);
     if (runs.length > KEEP) runs.splice(0, runs.length - KEEP);
-    log(r, null, 'info', `Bắt đầu ${kind} ${r.items.length} dịch vụ ở ${r.environment.name}, do ${by} yêu cầu.`);
+    log(r, null, 'info', `Started ${kind} of ${r.items.length} service(s) on ${r.environment.name}, requested by ${by}.`);
     r.done = Promise.all(r.items.map((item) => {
       const onEvent = (e) => {
         if (e.event === 'step') run.applyStep(item, e);
@@ -48,7 +48,7 @@ function makeRuns({ fleet, executors, clock, random, onSettled = () => {} }) {
         .then((result) => {
           run.applyResult(item, result);
           log(r, item.serviceId, item.status === run.ITEM.SUCCEEDED ? 'success' : item.status === run.ITEM.ROLLED_BACK ? 'warn' : 'error',
-            item.status === run.ITEM.SUCCEEDED ? 'Xong: đang chạy bản mới và khỏe.' : item.status === run.ITEM.ROLLED_BACK ? `Bản mới không khỏe, đã tự bật lại bản cũ: ${item.reason}` : `Hỏng: ${item.reason}`);
+            item.status === run.ITEM.SUCCEEDED ? 'Done: the new version is running and healthy.' : item.status === run.ITEM.ROLLED_BACK ? `The new version was unhealthy; the previous version was restored: ${item.reason}` : `Failed: ${item.reason}`);
         });
     })).then(() => { r.finishedAt = clock.now(); onSettled(); });
     return { ok: true, run: view(r) };

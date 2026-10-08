@@ -34,7 +34,7 @@ function applyResult(item, result) {
     for (const s of item.steps) if (s.status !== 'failed') s.status = 'succeeded';
     return item;
   }
-  item.reason = r.reason || 'lệnh không trả lý do';
+  item.reason = r.reason || 'the command gave no reason';
   item.outcome = r.outcome || null;
   item.status = r.reverted === 'ok' ? ITEM.ROLLED_BACK : ITEM.FAILED;
   for (const s of item.steps) if (s.status === 'running') s.status = 'failed';

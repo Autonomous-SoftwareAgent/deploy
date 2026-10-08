@@ -1,14 +1,16 @@
 // Mọi lời gọi tới máy chủ của bảng điều khiển đi qua tệp này. Trả { status, body }; không ném lỗi cho câu trả lời có mã lỗi.
 
+import { T } from './text.js';
+
 const HEADERS = { 'x-bsn-console': '1' };
 
 async function call(method, path, body) {
   let res;
   try { res = await fetch(path, { method, headers: { ...HEADERS, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined }); }
-  catch (e) { return { status: 0, body: { error: { code: 'NETWORK', message: `không gọi được máy chủ của bảng điều khiển: ${e.message}` } } }; }
+  catch (e) { return { status: 0, body: { error: { code: 'NETWORK', message: T.api.network(e.message) } } }; }
   let parsed = null;
   try { parsed = await res.json(); } catch { /* câu trả lời không phải JSON */ }
-  return { status: res.status, body: parsed || { error: { code: 'BAD_RESPONSE', message: `máy chủ trả mã ${res.status}` } } };
+  return { status: res.status, body: parsed || { error: { code: 'BAD_RESPONSE', message: T.api.status(res.status) } } };
 }
 
 const query = (params) => {
@@ -19,7 +21,7 @@ const query = (params) => {
 };
 
 /** Lời giải thích của một câu trả lời lỗi, ở cả hai dạng (đường /api cũ và /api/v1). */
-export const errorOf = (r) => (r.body && r.body.error && (r.body.error.message || r.body.error)) || `máy chủ trả mã ${r.status}`;
+export const errorOf = (r) => (r.body && r.body.error && (r.body.error.message || r.body.error)) || T.api.status(r.status);
 
 export const api = {
   login: (password) => call('POST', '/api/login', { password }),

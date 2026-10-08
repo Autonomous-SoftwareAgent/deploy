@@ -13,7 +13,7 @@ function makeCatalog({ check, source, registry, clock, historyLimit = 60, ttlMs 
   /** Tờ khai báo đã qua kiểm. Sai thì trả lỗi có tên để lớp ngoài đổi thành mã HTTP. */
   async function manifest() {
     const checked = await check({ requireRepos: false });
-    return checked.ok ? { ok: true, manifest: checked.manifest } : { ok: false, outcome: 'INVALID_DECLARATIONS', reason: `tờ khai báo không hợp lệ: ${checked.errors.join('; ')}` };
+    return checked.ok ? { ok: true, manifest: checked.manifest } : { ok: false, outcome: 'INVALID_DECLARATIONS', reason: `invalid service declarations: ${checked.errors.join('; ')}` };
   }
 
   async function load(name, svc, platform) {
@@ -23,7 +23,7 @@ function makeCatalog({ check, source, registry, clock, historyLimit = 60, ttlMs 
     try { if (await source.has(svc.repo)) log = await source.log(svc.repo, historyLimit); } catch { log = []; }
     const names = reg ? await registry.tags(`${reg.namespace}/${reg.repoPrefix || ''}${name}`) : null;
     return {
-      repo: svc.repo, project: typeof svc.project === 'string' ? svc.project.trim() : null, declared: svc.commit || null,
+      repo: svc.repo, project: typeof svc.project === 'string' ? svc.project.trim() : null, kind: svc.kind || null, declared: svc.commit || null,
       branch: (reg && reg.branch) || 'main', log, shas: log.map((c) => c.sha), bySha: new Map(log.map((c) => [c.sha, c])),
       tags: names ? new Set(names) : null,
     };
@@ -32,10 +32,10 @@ function makeCatalog({ check, source, registry, clock, historyLimit = 60, ttlMs 
   /** Thông tin của một dịch vụ. Tờ khai báo luôn đọc mới (commit đã khai đổi là thấy ngay); git và kho thì dùng lại trong ttlMs. */
   async function service(name) {
     const m = await manifest();
-    if (!m.ok || !m.manifest.services[name]) return { repo: null, project: null, declared: null, branch: 'main', log: [], shas: [], bySha: new Map(), tags: null };
+    if (!m.ok || !m.manifest.services[name]) return { repo: null, project: null, kind: null, declared: null, branch: 'main', log: [], shas: [], bySha: new Map(), tags: null };
     const svc = m.manifest.services[name];
     const hit = cached.get(name);
-    if (hit && clock.millis() - hit.at < ttlMs) return { ...hit.value, declared: svc.commit || null, project: typeof svc.project === 'string' ? svc.project.trim() : null };
+    if (hit && clock.millis() - hit.at < ttlMs) return { ...hit.value, declared: svc.commit || null, project: typeof svc.project === 'string' ? svc.project.trim() : null, kind: svc.kind || null };
     const value = await load(name, svc, m.manifest.platform);
     cached.set(name, { at: clock.millis(), value });
     return value;

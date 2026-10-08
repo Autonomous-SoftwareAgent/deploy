@@ -90,23 +90,23 @@ function preflightItem({ kind, reachable, row, target, shas, build, name, enviro
   const warn = (code, message) => warnings.push({ code, message });
   const from = row && row.running ? row.runningCommit || null : null;
   const out = { from, to: target || null, firstDeploy: !from, direction: 'same', changes: [], blockers, warnings };
-  if (!reachable) { block(BLOCK.ENV_UNREACHABLE, `Không hỏi được môi trường ${environmentName}.`); return out; }
-  if (!row) { block(BLOCK.NOT_IN_ENVIRONMENT, `Môi trường ${environmentName} không có dịch vụ ${name}.`); return out; }
-  if (row.busy) block(BLOCK.RUN_IN_PROGRESS, `${name} đang có một lần đưa lên chạy dở ở ${environmentName}.`);
-  if (kind === 'rollback' && !from) { block(BLOCK.NOTHING_TO_ROLLBACK, `Chưa có bản đang chạy ở ${environmentName} để rollback.`); return out; }
-  if (!target) { block(kind === 'rollback' ? BLOCK.NOTHING_TO_ROLLBACK : BLOCK.COMMIT_UNKNOWN, kind === 'rollback' ? `Sổ deploy của ${environmentName} chưa ghi bản liền trước nào của ${name}.` : `${name} chưa khai commit nào để deploy.`); return out; }
-  if (from === target) { block(BLOCK.ALREADY_RUNNING, `Commit ${short(target)} đang chạy ở ${environmentName}.`); return out; }
+  if (!reachable) { block(BLOCK.ENV_UNREACHABLE, `Environment ${environmentName} is unreachable.`); return out; }
+  if (!row) { block(BLOCK.NOT_IN_ENVIRONMENT, `Environment ${environmentName} does not run ${name}.`); return out; }
+  if (row.busy) block(BLOCK.RUN_IN_PROGRESS, `${name} already has a run in progress on ${environmentName}.`);
+  if (kind === 'rollback' && !from) { block(BLOCK.NOTHING_TO_ROLLBACK, `Nothing is running on ${environmentName} to roll back.`); return out; }
+  if (!target) { block(kind === 'rollback' ? BLOCK.NOTHING_TO_ROLLBACK : BLOCK.COMMIT_UNKNOWN, kind === 'rollback' ? `The deploy ledger of ${environmentName} has no previous version of ${name}.` : `${name} has no declared commit to deploy.`); return out; }
+  if (from === target) { block(BLOCK.ALREADY_RUNNING, `Commit ${short(target)} is already running on ${environmentName}.`); return out; }
   const diff = from ? changesBetween(shas, from, target) : null;
   if (diff) { out.direction = diff.direction; out.changes = diff.shas; }
-  else if (from) warn(WARN.NOT_IN_HISTORY, 'Không thấy cả hai commit trong lịch sử ở máy này nên không liệt kê được thay đổi.');
+  else if (from) warn(WARN.NOT_IN_HISTORY, 'One of the two commits is not in the history on this machine, so the changes cannot be listed.');
   if (kind === 'rollback') {
-    if (diff && diff.direction === 'forward') block(BLOCK.ROLLBACK_TARGET_NEWER, 'Commit đích mới hơn bản đang chạy. Rollback phải về commit cũ hơn.');
-    if (!ranOkCommits(row).includes(target)) block(BLOCK.NEVER_RAN_HERE, `Commit ${short(target)} chưa từng chạy khỏe ở ${environmentName}; rollback chỉ lùi về bản đã từng chạy ở đó.`);
+    if (diff && diff.direction === 'forward') block(BLOCK.ROLLBACK_TARGET_NEWER, 'The target commit is newer than the running one. A rollback must go to an older commit.');
+    if (!ranOkCommits(row).includes(target)) block(BLOCK.NEVER_RAN_HERE, `Commit ${short(target)} never ran healthy on ${environmentName}; a rollback only goes back to a version that did.`);
     return out;
   }
-  if (build === BUILD.NONE) block(BLOCK.BUILD_NOT_READY, `Commit ${short(target)} chưa có bản đóng gói. Bản chỉ sinh ra cho commit được khai trong tờ khai báo và đã qua CI.`);
-  if (build === BUILD.UNKNOWN) warn(WARN.BUILD_UNKNOWN, 'Không hỏi được kho bản đóng gói; lệnh deploy sẽ tự kiểm lại và từ chối nếu chưa có bản.');
-  if (diff && diff.direction === 'backward') warn(WARN.DEPLOY_OLDER_COMMIT, 'Commit đích cũ hơn bản đang chạy: thao tác này lùi phiên bản. Dùng Rollback nếu muốn ghi nhận đúng loại.');
+  if (build === BUILD.NONE) block(BLOCK.BUILD_NOT_READY, `Commit ${short(target)} has no image yet. An image is only built for a commit that is declared and has passed CI.`);
+  if (build === BUILD.UNKNOWN) warn(WARN.BUILD_UNKNOWN, 'The image registry is unreachable; the deploy command checks again and refuses when the image is missing.');
+  if (diff && diff.direction === 'backward') warn(WARN.DEPLOY_OLDER_COMMIT, 'The target commit is older than the running one: this moves the version backwards. Use Rollback to record it as such.');
   return out;
 }
 

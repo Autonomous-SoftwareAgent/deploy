@@ -36,11 +36,11 @@ function emptyWorld() {
  * Thêm một dịch vụ đang chạy khỏe ở commit `running`, đã khai commit `declared`; `published` là các commit đã có bản trên kho.
  * Lịch sử của repo: `history` (mới trước) nếu truyền, không thì suy ra: commit đã khai là đầu nhánh, bản đang chạy nằm dưới.
  */
-function addService(world, name, { declared, running, published = [], port, project, history }) {
+function addService(world, name, { declared, running, published = [], port, project, kind, history }) {
   const repo = `mau/${name}`;
-  world.manifest.services[name] = { repo, commit: declared, port: { local: port, container: 8080 }, health: '/health', ...(project ? { project } : {}) };
+  world.manifest.services[name] = { repo, commit: declared, port: { local: port, container: 8080 }, health: '/health', ...(project ? { project } : {}), ...(kind ? { kind } : {}) };
   const order = history || [...new Set([declared, ...published.filter((c) => c !== declared && c !== running).reverse(), running])];
-  const log = order.map((sha, i) => ({ sha, message: `thay đổi mẫu ${order.length - i} của ${name}`, author: 'Người Mẫu', at: new Date(Date.parse('2025-12-31T00:00:00Z') - i * 3600000).toISOString() }));
+  const log = order.map((sha, i) => ({ sha, message: `sample change ${order.length - i} of ${name}`, author: 'Sample Author', at: new Date(Date.parse('2025-12-31T00:00:00Z') - i * 3600000).toISOString() }));
   world.repos.set(repo, { head: declared, commits: new Set([declared, running, ...published, ...order]), dirty: 0, history: log });
   for (const c of published) world.published.set(remoteImage(PLATFORM, name, c), c);
   world.images.set(localImage(name, running), running);
@@ -53,9 +53,9 @@ function addService(world, name, { declared, running, published = [], port, proj
 function sampleWorld({ delayMs = 0 } = {}) {
   const w = emptyWorld();
   w.delayMs = delayMs;
-  addService(w, 'mau-tot', { declared: commit('b'), running: commit('a'), published: [commit('a'), commit('b')], port: 8000, project: 'Nhóm mẫu A' });
-  addService(w, 'mau-hong', { declared: BROKEN, running: commit('c'), published: [commit('c'), BROKEN], port: 8001, project: 'Nhóm mẫu A' });
-  addService(w, 'mau-cho-build', { declared: commit('e'), running: commit('d'), published: [commit('d')], port: 8002, project: 'Nhóm mẫu B' });
+  addService(w, 'mau-tot', { declared: commit('b'), running: commit('a'), published: [commit('a'), commit('b')], port: 8000, project: 'Sample group A', kind: 'api' });
+  addService(w, 'mau-hong', { declared: BROKEN, running: commit('c'), published: [commit('c'), BROKEN], port: 8001, project: 'Sample group A', kind: 'web' });
+  addService(w, 'mau-cho-build', { declared: commit('e'), running: commit('d'), published: [commit('d')], port: 8002, project: 'Sample group B', kind: 'worker' });
   w.unhealthy.add(BROKEN);
   return w;
 }

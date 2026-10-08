@@ -1,5 +1,6 @@
 // Dựng phần tử trang. Chữ luôn đi qua textContent (không bao giờ ghép HTML từ dữ liệu), kiểu dáng động đặt qua CSSOM
 // (chính sách nội dung của trang không cho thuộc tính style viết trong HTML).
+import { T } from './text.js';
 
 /**
  * h('div', { class: 'row', onclick: fn, title: '...', css: { background: '#fff' } }, con1, 'chữ', [con2, con3])
@@ -35,21 +36,17 @@ export function mount(el, ...kids) {
   return el;
 }
 
-export const short = (sha) => (sha ? String(sha).slice(0, 7) : '—');
+export const short = (sha) => (sha ? String(sha).slice(0, 7) : T.dash);
 
-/** "3 phút trước" từ một thời điểm ISO. Không có thời điểm: gạch ngang. */
+/** "3 min ago" từ một thời điểm ISO. Không có thời điểm: gạch ngang. */
 export function ago(iso) {
   const t = Date.parse(iso || '');
-  if (Number.isNaN(t)) return '—';
+  if (Number.isNaN(t)) return T.dash;
   const m = (Date.now() - t) / 60000;
-  if (m < 1) return 'vừa xong';
-  if (m < 60) return `${Math.round(m)} phút trước`;
-  if (m < 1440) return `${Math.round(m / 60)} giờ trước`;
-  return `${Math.round(m / 1440)} ngày trước`;
+  if (m < 1) return T.ago.now;
+  if (m < 60) return T.ago.min(Math.round(m));
+  if (m < 1440) return T.ago.hour(Math.round(m / 60));
+  return T.ago.day(Math.round(m / 1440));
 }
 
-export const HEALTH_LABEL = { healthy: 'khỏe', deploying: 'đang đưa lên', failed: 'hỏng' };
-export const BUILD_LABEL = { passed: 'đã có bản', none: 'chưa đóng gói', unknown: 'không hỏi được kho' };
-export const STEP_LABEL = { fetch: 'Lấy bản', start: 'Bật bản mới', health: 'Kiểm sức khỏe', record: 'Ghi sổ' };
-export const ITEM_LABEL = { running: 'Đang chạy', succeeded: 'Thành công', failed: 'Thất bại', rolling_back: 'Đang bật lại bản cũ', rolled_back: 'Đã tự bật lại bản cũ' };
 export const ITEM_CHIP = { running: 'run', succeeded: 'ok', failed: 'bad', rolling_back: 'warn', rolled_back: 'warn' };

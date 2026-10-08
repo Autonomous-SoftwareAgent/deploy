@@ -6,7 +6,7 @@
 const fleet = require('../domain/fleet');
 const { short, COMMIT_RE } = require('../domain/naming');
 
-const UNGROUPED = 'Chưa xếp nhóm';
+const UNGROUPED = 'Ungrouped';
 const refuse = (outcome, reason) => ({ ok: false, outcome, reason });
 
 function makeFleet({ environments, catalog }) {
@@ -17,7 +17,7 @@ function makeFleet({ environments, catalog }) {
   async function snapshot(only) {
     const list = only ? environments.filter((e) => e.id === only) : environments;
     const states = await Promise.all(list.map(async (e) => {
-      try { const s = await e.status(); return [e.id, s && s.ok ? { reachable: true, rows: new Map(s.services.map((r) => [r.service, r])) } : { reachable: false, error: (s && s.error) || 'không đọc được trạng thái', rows: new Map() }]; }
+      try { const s = await e.status(); return [e.id, s && s.ok ? { reachable: true, rows: new Map(s.services.map((r) => [r.service, r])) } : { reachable: false, error: (s && s.error) || 'could not read the environment state', rows: new Map() }]; }
       catch (err) { return [e.id, { reachable: false, error: err.message, rows: new Map() }]; }
     }));
     return new Map(states);
@@ -56,7 +56,7 @@ function makeFleet({ environments, catalog }) {
       const info = infos.get(name);
       const cells = Object.fromEntries(environments.map((e) => [e.id, cellOf(states.get(e.id), info, name)]));
       const live = Object.values(cells).filter((c) => c.deployed);
-      return { id: name, name, project: info.project || UNGROUPED, priorityScore: fleet.priorityScore(live), configWarnings: info.declared ? [] : [{ code: 'NOT_DECLARED' }], cells };
+      return { id: name, name, kind: info.kind, project: info.project || UNGROUPED, priorityScore: fleet.priorityScore(live), configWarnings: info.declared ? [] : [{ code: 'NOT_DECLARED' }], cells };
     });
     const has = (svc, test) => Object.values(svc.cells).some((c) => c.deployed && test(c));
     const summary = {
@@ -87,7 +87,7 @@ function makeFleet({ environments, catalog }) {
   async function service(id) {
     const m = await catalog.manifest();
     if (!m.ok) return m;
-    if (!m.manifest.services[id]) return refuse('UNKNOWN_SERVICE', `không có dịch vụ ${id}`);
+    if (!m.manifest.services[id]) return refuse('UNKNOWN_SERVICE', `unknown service ${id}`);
     const info = await catalog.service(id);
     const states = await snapshot();
     const cells = environments.map((e, i) => ({ environment: envView(e, i), ...cellOf(states.get(e.id), info, id) }));
@@ -101,7 +101,7 @@ function makeFleet({ environments, catalog }) {
     deployments.sort((a, b) => String(b.at).localeCompare(String(a.at)));
     return {
       ok: true,
-      service: { id, name: id, project: info.project || UNGROUPED, repo: info.repo, declared: commitView(info, info.declared), healthCheck: { path: m.manifest.services[id].health }, historyAvailable: info.log.length > 0, registryReachable: info.tags !== null },
+      service: { id, name: id, kind: info.kind, project: info.project || UNGROUPED, repo: info.repo, declared: commitView(info, info.declared), healthCheck: { path: m.manifest.services[id].health }, historyAvailable: info.log.length > 0, registryReachable: info.tags !== null },
       environments: cells, commits, deployments,
     };
   }
@@ -111,26 +111,26 @@ function makeFleet({ environments, catalog }) {
    * targetSha bỏ trống: deploy lấy commit đã khai, rollback lấy bản liền trước ghi trong sổ của môi trường.
    */
   async function preflight({ kind, environmentId, items }) {
-    if (!['deploy', 'rollback'].includes(kind)) return refuse('BAD_INPUT', 'kind phải là deploy hoặc rollback');
+    if (!['deploy', 'rollback'].includes(kind)) return refuse('BAD_INPUT', 'kind must be deploy or rollback');
     const env = envById(environmentId);
-    if (!env) return refuse('UNKNOWN_ENVIRONMENT', `không có môi trường ${environmentId}`);
-    if (!Array.isArray(items) || !items.length || items.length > 50) return refuse('BAD_INPUT', 'items phải có từ 1 đến 50 mục');
-    if (new Set(items.map((i) => i && i.serviceId)).size !== items.length) return refuse('BAD_INPUT', 'mỗi dịch vụ chỉ được có một mục');
+    if (!env) return refuse('UNKNOWN_ENVIRONMENT', `unknown environment ${environmentId}`);
+    if (!Array.isArray(items) || !items.length || items.length > 50) return refuse('BAD_INPUT', 'items must hold 1 to 50 entries');
+    if (new Set(items.map((i) => i && i.serviceId)).size !== items.length) return refuse('BAD_INPUT', 'each service may appear only once');
     const m = await catalog.manifest();
     if (!m.ok) return m;
     const state = (await snapshot(env.id)).get(env.id);
     const out = [];
     for (const it of items) {
       const id = it && it.serviceId;
-      if (typeof id !== 'string' || !m.manifest.services[id]) return refuse('UNKNOWN_SERVICE', `không có dịch vụ ${JSON.stringify(id)}`);
-      if (it.targetSha !== undefined && it.targetSha !== null && !COMMIT_RE.test(it.targetSha)) return refuse('BAD_INPUT', `targetSha của ${id} phải là mã commit đủ 40 ký tự`);
+      if (typeof id !== 'string' || !m.manifest.services[id]) return refuse('UNKNOWN_SERVICE', `unknown service ${JSON.stringify(id)}`);
+      if (it.targetSha !== undefined && it.targetSha !== null && !COMMIT_RE.test(it.targetSha)) return refuse('BAD_INPUT', `targetSha of ${id} must be a full 40-character commit id`);
       const info = await catalog.service(id);
       const row = state.rows.get(id) || null;
       const target = it.targetSha || (kind === 'rollback' ? (row && row.previous) || null : info.declared);
       const res = fleet.preflightItem({ kind, reachable: state.reachable, row, target, shas: info.shas, build: target ? fleet.buildOf(info.tags, info.branch, target) : fleet.BUILD.UNKNOWN, name: id, environmentName: env.name });
       const suggestions = kind === 'rollback'
-        ? fleet.ranOkCommits(row).filter((sha) => sha !== res.from).slice(0, 5).map((sha, i) => ({ label: i === 0 && sha === (row && row.previous) ? 'Bản liền trước' : 'Đã từng chạy khỏe ở đây', ...commitView(info, sha) }))
-        : [info.declared && { label: 'Bản đã khai', ...commitView(info, info.declared) }].filter(Boolean);
+        ? fleet.ranOkCommits(row).filter((sha) => sha !== res.from).slice(0, 5).map((sha, i) => ({ label: i === 0 && sha === (row && row.previous) ? 'Previous version' : 'Ran healthy here', ...commitView(info, sha) }))
+        : [info.declared && { label: 'Declared commit', ...commitView(info, info.declared) }].filter(Boolean);
       out.push({
         serviceId: id, from: commitView(info, res.from), to: target ? { ...commitView(info, target), build: fleet.buildOf(info.tags, info.branch, target) } : null,
         firstDeploy: res.firstDeploy, direction: res.direction, changes: res.changes.map((sha) => ({ ...commitView(info, sha), direction: res.direction })),

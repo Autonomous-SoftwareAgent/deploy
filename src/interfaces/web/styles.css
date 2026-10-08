@@ -81,6 +81,8 @@ textarea.inp{padding:10px;min-height:160px;font-family:var(--mono);font-size:12p
 .hash{font-size:12px;background:#EEF0F4;padding:0 5px;border-radius:3px}
 .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#2B3340;font-size:13px}
 .tm{margin-left:auto;font-size:12px;white-space:nowrap}
+.cell .l1{max-width:270px}
+.kinds{display:flex;gap:6px;flex-wrap:wrap}
 .selbar{position:sticky;bottom:16px;margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:#11151C;color:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 8px 24px rgba(17,21,28,.25)}
 .selbar .btn{border-color:#2C3547}
 .dd{position:relative}

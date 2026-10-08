@@ -100,7 +100,7 @@ test('GET /api/v1/overview: cột sinh từ danh sách môi trường, nhóm the
   const ov = (await b.call('GET', '/api/v1/overview')).body;
   assert.deepEqual(ov.environments.map((e) => e.id), ['mau-thu', 'mau-that']);
   assert.ok(ov.environments.every((e) => /^#[0-9A-F]{6}$/i.test(e.color)));
-  assert.deepEqual(ov.groups.map((g) => g.project.name).sort(), ['Nhóm mẫu A', 'Nhóm mẫu B']);
+  assert.deepEqual(ov.groups.map((g) => g.project.name).sort(), ['Sample group A', 'Sample group B']);
   assert.equal(ov.summary.services, 3);
   const tot = b.svcIn(ov, 'mau-tot');
   assert.deepEqual(Object.keys(tot.cells), ['mau-thu', 'mau-that']);
@@ -109,7 +109,7 @@ test('GET /api/v1/overview: cột sinh từ danh sách môi trường, nhóm the
   assert.match(cell.commit.message, /mau-tot/);
   assert.equal(ov.summary.behind, 3, 'cả ba dịch vụ mẫu đều đang chạy bản cũ hơn bản đã khai');
   // Bộ lọc: theo dự án, theo môi trường (chỉ còn một cột), theo tên, theo trạng thái.
-  const byProject = (await b.call('GET', `/api/v1/overview?projectId=${encodeURIComponent('Nhóm mẫu B')}`)).body;
+  const byProject = (await b.call('GET', `/api/v1/overview?projectId=${encodeURIComponent('Sample group B')}`)).body;
   assert.deepEqual(byProject.groups.flatMap((g) => g.services.map((s) => s.name)), ['mau-cho-build']);
   const oneEnv = (await b.call('GET', '/api/v1/overview?environmentId=mau-that')).body;
   assert.deepEqual(oneEnv.environments.map((e) => e.id), ['mau-that']);
@@ -122,7 +122,7 @@ test('GET /api/v1/overview: cột sinh từ danh sách môi trường, nhóm the
 test('GET /api/v1/services/{id}: môi trường, commit kèm "đã có bản" và "đang chạy ở đâu", dòng thời gian; dịch vụ lạ là 404', async (t) => {
   const b = await boot(t);
   const d = (await b.call('GET', '/api/v1/services/mau-tot')).body;
-  assert.equal(d.service.project, 'Nhóm mẫu A');
+  assert.equal(d.service.project, 'Sample group A');
   assert.equal(d.service.declared.sha, commit('b'));
   assert.deepEqual(d.environments.map((e) => e.environment.id), ['mau-thu', 'mau-that']);
   assert.deepEqual(d.commits.map((c) => [c.sha, c.build, c.declared, c.runningIn]), [[commit('b'), 'passed', true, []], [commit('a'), 'passed', false, ['mau-thu', 'mau-that']]]);
@@ -140,7 +140,7 @@ test('POST /api/v1/deployments/preflight: từ bản nào sang bản nào, thay 
   const [tot, cho] = pre.items;
   assert.deepEqual([tot.from.sha, tot.to.sha, tot.to.build, tot.direction, tot.blockers.length], [commit('a'), commit('b'), 'passed', 'forward', 0]);
   assert.deepEqual(tot.changes.map((c) => c.sha), [commit('b')]);
-  assert.equal(tot.suggestions[0].label, 'Bản đã khai');
+  assert.equal(tot.suggestions[0].label, 'Declared commit');
   assert.deepEqual(cho.blockers.map((x) => x.code), ['BUILD_NOT_READY']);
   // Chọn đúng commit đang chạy; môi trường lạ; dịch vụ lạ; thiếu mục; mã commit sai dạng.
   const same = (await b.call('POST', '/api/v1/deployments/preflight', { kind: 'deploy', environmentId: 'mau-thu', items: [{ serviceId: 'mau-tot', targetSha: commit('a') }] })).body;

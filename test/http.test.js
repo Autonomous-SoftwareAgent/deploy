@@ -38,7 +38,7 @@ test('chưa đăng nhập: trang, tệp giao diện và /healthz mở được; 
   assert.equal((await b.call('GET', '/healthz')).status, 200);
   const page = await b.call('GET', '/');
   assert.equal(page.status, 200);
-  assert.match(page.text, /Bảng điều khiển deploy/);
+  assert.match(page.text, /Deploy Console/);
   assert.ok(!/<script(?![^>]*\bsrc=)/.test(page.text) && !/<style/.test(page.text), 'trang không có mã viết trong HTML');
   assert.equal(page.headers['content-security-policy'].includes('unsafe-inline'), false);
   const js = await b.call('GET', '/web/main.js');

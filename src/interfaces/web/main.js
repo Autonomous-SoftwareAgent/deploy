@@ -1,5 +1,6 @@
 // Cửa vào của giao diện: nối trạng thái với các màn và vẽ lại khi trạng thái đổi. Không có bước build; trình duyệt nạp thẳng các module.
 import { mount, h } from './dom.js';
+import { T } from './text.js';
 import { state, actions, onRender } from './store.js';
 import { sideView, loginView } from './views/shell.js';
 import { overviewView } from './views/overview.js';
@@ -11,7 +12,7 @@ const side = document.getElementById('side');
 const main = document.getElementById('main');
 const overlay = document.getElementById('overlay');
 
-const VIEWS = { login: loginView, overview: overviewView, service: serviceView, run: runView, loading: () => h('div', { class: 'empty' }, 'Đang mở bảng điều khiển…') };
+const VIEWS = { login: loginView, overview: overviewView, service: serviceView, run: runView, loading: () => h('div', { class: 'empty' }, T.loading) };
 
 onRender(() => {
   mount(side, sideView(state, actions));
