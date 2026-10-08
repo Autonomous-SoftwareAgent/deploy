@@ -40,7 +40,21 @@ Mỗi đợt xong thì cập nhật ô dưới đây, README và STATUS.
 
 ### Đợt D: quan sát và tiện ích
 - [x] Tab Logs: mấy dòng log cuối của container theo môi trường (`Runtime.logs`; đích từ xa gọi thẳng docker qua SSH). Tab Environment variables: tên biến theo tờ khai báo, bí mật không có giá trị.
-- [ ] Biểu đồ trước và sau deploy (cần hệ giám sát), ngăn so sánh commit theo tệp, gõ lệnh nhanh, cập nhật trực tiếp (SSE; trang đang hỏi định kỳ), test tự động cho giao diện (kịch bản trình duyệt hiện nằm ngoài repo).
+- [x] Ngăn so sánh commit theo tệp trong hộp thoại (`Source.diffStat`, `GET /services/{id}/diff`). Cập nhật trực tiếp qua SSE (`GET /events`), mất kết nối thì quay về hỏi định kỳ. Test giao diện bằng trình duyệt thật nằm trong repo (`test/ui.test.js`).
+- [ ] Biểu đồ trước và sau deploy (cần hệ giám sát); gõ lệnh nhanh.
+
+### Đợt E: nơi lưu và môi trường (xong 2026-10-08)
+- [x] DB SQLite riêng của bảng điều khiển (D-014): cấu hình, phân quyền, thành viên, sổ thao tác (lọc được), yêu cầu chờ duyệt và lịch sử lần chạy còn sau khi khởi động lại; chép một lần từ tệp cũ.
+- [x] Thêm và gỡ môi trường trên trang (D-015): khai máy đã có, hoặc tạo máy mới trên GCP rồi chuẩn bị để nhận lệnh; gỡ khỏi bảng điều khiển hoặc xóa cả máy.
+- TẠM DỪNG theo lời người dùng, chờ infra có VM riêng: tự deploy khi có push.
+
+## Đã kiểm ngày 2026-10-08, đợt E
+- 154 test qua, gồm 2 test giao diện bằng Edge chạy ngầm.
+- Bảng điều khiển ở cổng 8900 chạy mã mới: lần khởi động đầu chép 4 dòng sổ thao tác cũ vào DB.
+- Hệ thật ở máy làm việc qua cổng 8900 (`/api/v1`, token của agent): deploy payment-hub sang commit cũ hơn (11 giây), deploy lại (11 giây), rollback (8 giây), deploy lại (11 giây); hệ về đúng bản đã khai.
+- GCP THẬT, qua đường `POST /api/v1/environments` bằng tài khoản admin (cùng đường mà nút trên trang gọi): tạo máy `bsn-thu-2` (`e2-small`, asia-southeast1-a) mất 221 giây qua đủ bốn bước (tạo máy 20 giây, chờ SSH 35 giây, cài đặt 161 giây, kiểm 5 giây); cột `bsn-thu-2` hiện trên Tổng quan; xóa máy qua `DELETE /api/v1/environments/bsn-thu-2` mất 60 giây; `gcloud` xác nhận chỉ còn máy `bsn-thu-1` và đĩa của nó.
+- ĐIỀU THẤY ĐƯỢC ở lần thử GCP: cột của máy mới báo "không thấy repo git của dịch vụ" thay vì "Not deployed". Lý do: máy mới lấy bộ lệnh từ GitHub, nơi còn bản cũ (mã mới chưa đẩy), và bản cũ của lệnh `status` đòi có repo dịch vụ. Bản mới đã sửa (`status` chạy được trên máy chỉ có repo deploy; có test), nhưng CHƯA kiểm trên máy thật vì chưa đẩy.
+- CHƯA kiểm: bấm nút trên trình duyệt với GCP thật (đã gọi đúng đường của nút, không qua trình duyệt); deploy một dịch vụ vào máy vừa tạo (máy đó chưa có repo của dịch vụ: phải chạy `server/sync.sh` trước, và ingest chưa có trên GitHub); khai một máy đã có (`mode: register`) với máy thật; phân quyền, duyệt, giờ khóa với hệ thật.
 
 ## Đã kiểm ngày 2026-10-08
 - 130 test qua (`node --test infra/test/*.test.js infra/ci/test/*.test.js`).

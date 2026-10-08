@@ -36,3 +36,27 @@ module: bang-dieu-khien
 - tests: test/safety.test.js, test/http.test.js, test/fleet.test.js, test/web-text.test.js
 - deviation:
 - notes: Đã kiểm 2026-10-08: 130 test qua; trình duyệt chạy ngầm với dữ liệu mẫu đi hết sáu mục cấu hình, tạo người dùng, gõ tên xác nhận, xin duyệt, không lỗi JavaScript. CHƯA kiểm với hệ thật: phân quyền, duyệt, giờ khóa (hệ thật mới thử deploy và rollback bằng token của agent khi chưa đặt mức bảo vệ nào). Có chủ ý không làm theo bản design: tạo và xóa môi trường trên trang, tự deploy khi có push, môi trường tạm theo nhánh, biểu đồ số đo (chưa có nguồn). Yêu cầu chờ duyệt và sổ lần chạy sống trong bộ nhớ.
+
+## BDK-S-005: DB riêng của bảng điều khiển bằng SQLite; bảng điều khiển không phải một service trong hệ
+- spec_hash: 06b014f9
+- status: done
+- code: src/infrastructure/sqlite/console-db.js, src/infrastructure/sqlite/console-stores.js, src/application/import-records.js
+- tests: test/console-db.test.js, test/safety.test.js
+- deviation:
+- notes: Ca sử dụng dùng các cổng này: application/auth.js (Members), settings.js (ConfigStore), audit.js (AuditLog), approvals.js (approvalStore), runs.js (runStore), provision.js (TargetStore); lắp ở composition/console.js (consoleStores). Đã chạy thật 2026-10-08: bảng điều khiển ở cổng 8900 mở DB mới và chép 4 dòng sổ thao tác cũ. CHƯA có: lịch sao lưu tệp DB; kiểm hai tiến trình cùng ghi.
+
+## BDK-S-006: Thêm và gỡ môi trường trên trang, kể cả tạo và xóa máy trên GCP
+- spec_hash: e3d358da
+- status: done
+- code: src/domain/provision.js, src/application/provision.js, src/infrastructure/gcloud-compute.js, src/interfaces/web/views/config-machines.js
+- tests: test/provision.test.js, test/bsn.test.js, test/ui.test.js
+- deviation:
+- notes: Đường gọi ở interfaces/http/controllers/admin.js; danh sách môi trường sống (roster) và bộ nối máy mới ở composition/console.js; server/setup.sh có BSN_SKIP_SERVICE_REPOS. Đã chạy thật 2026-10-08 với GCP: tạo bsn-thu-2 trong 221 giây, xóa trong 60 giây. CHƯA kiểm với máy thật: cột của máy mới hiện "Not deployed" (máy thử lấy bản lệnh cũ từ GitHub vì mã mới chưa đẩy, nên cột báo thiếu repo dịch vụ); deploy một dịch vụ vào máy vừa tạo; khai một máy đã có (register). Chưa có hạn mức số máy hay tiền.
+
+## BDK-S-007: Cập nhật trực tiếp bằng dòng sự kiện chỉ mang tên chủ đề; so sánh commit theo tệp; test giao diện bằng trình duyệt thật
+- spec_hash: 0947d62d
+- status: done
+- code: src/application/changes.js, src/interfaces/http/controllers/events.js
+- tests: test/fleet.test.js, test/ui.test.js
+- deviation:
+- notes: Dòng sự kiện được giữ mở ở interfaces/http/server.js; trang nghe ở interfaces/web/store.js (connectEvents). So sánh theo tệp: Source.diffStat (infrastructure/git-source.js), application/catalog.js và fleet.js (diff), ngăn trong interfaces/web/views/dialog.js. Test giao diện dùng test/support/browser.js. CHƯA kiểm: dòng sự kiện qua một lớp trung gian (proxy) hay qua đường hầm SSH.

@@ -85,3 +85,17 @@ Tệp này chỉ ghi quyết định kỹ thuật của riêng repo deploy mà p
 - Biểu đồ lỗi và độ trễ, trạng thái `degraded`: chưa có nguồn số liệu nên không vẽ số giả; ô đếm `degraded` luôn là 0.
 - Người dùng chốt giao diện dùng tiếng Anh toàn bộ; chữ gom ở `src/interfaces/web/text.js` và `text-config.js`. Đầu ra của dòng lệnh, tài liệu và chú thích trong mã giữ tiếng Việt; vì vậy các dòng log của một lần chạy (do lệnh in ra) vẫn là tiếng Việt.
 
+## D-014: Bảng điều khiển có DB riêng bằng SQLite; nó không phải một service trong hệ
+- Ngày: 2026-10-08. Người dùng hỏi có nên biến phần infra thành một service như các service khác và cho nó một DB; chốt dùng SQLite, và dùng cho cả phân quyền, thành viên chứ không chỉ sổ thao tác.
+- Bảng điều khiển KHÔNG nằm trong danh sách dịch vụ mà nó deploy: nếu nằm trong đó thì bản mới của nó hỏng là mất chỗ bấm rollback, sổ thao tác mất đúng lúc hệ sập, và thứ giữ quyền SSH, quyền tạo máy lại chạy chung chỗ với service nghiệp vụ.
+- DB là MỘT tệp SQLite cạnh bảng điều khiển (`local/.run/console.db`), mở bằng `node:sqlite` có sẵn trong Node 24: không thêm thư viện, không thêm máy chủ DB phải canh. Đây là ngoại lệ có chủ ý của quy tắc chung "PostgreSQL là cơ sở dữ liệu duy nhất" (quy tắc đó viết cho service nghiệp vụ).
+- Trong DB: cấu hình có phiên bản, bảng phân quyền và mức bảo vệ (ghi lại theo phiên bản mới nhất, cùng giao dịch), thành viên (băm chậm có muối), sổ thao tác, yêu cầu chờ duyệt, lịch sử lần chạy, môi trường do trang thêm. NGOÀI DB: mật khẩu quản trị và token của agent (tệp riêng, để DB hỏng thì admin vẫn vào được và `--reset-auth` vẫn chạy); bí mật của dịch vụ (không bao giờ vào đây).
+- Giới hạn đã biết: một tiến trình bảng điều khiển ghi tại một thời điểm (hai máy quản trị chạy song song thì phải đổi sang DB có máy chủ; đổi là thay bộ nối); sao lưu là chép tệp, chưa có lịch; `node:sqlite` còn được Node ghi là chưa ổn định hẳn nên được gói trong đúng hai tệp ở `infrastructure/sqlite/`.
+
+## D-015: Thêm và gỡ môi trường trên trang, kể cả tạo và xóa máy trên GCP
+- Ngày: 2026-10-08. Người dùng yêu cầu làm phần này của bản design và thử thật trên GCP (thay cho quyết định "không tạo, xóa môi trường trên trang" ở D-013).
+- Tạo một môi trường là tạo MỘT MÁY sẵn sàng nhận lệnh: tạo máy, chờ SSH, cài Docker, Node và bộ lệnh điều khiển, kiểm lệnh chạy được. Không lấy repo của dịch vụ, không bật hệ, không deploy gì: đưa dịch vụ lên là việc của người vận hành (người dùng chốt).
+- Tạo máy tốn tiền nên: chỉ Admin và DevOps làm được, trang hiện giá ước tính, phải gõ lại tên, và mọi lần đều vào sổ thao tác. Xóa máy chỉ áp cho máy do bảng điều khiển tạo; môi trường khai bằng tệp `targets/<tên>.json` không gỡ được từ trang.
+- Bảng điều khiển gọi `gcloud` bằng tài khoản và dự án đang đăng nhập ở máy chạy nó; nó không giữ khóa cloud nào. Chưa có hạn mức số máy hay tiền.
+- Tự deploy khi có push: người dùng TẠM DỪNG cho tới khi infra có VM riêng (bảng điều khiển chỉ nghe ở `127.0.0.1` nên chưa nhận được tin từ GitHub).
+

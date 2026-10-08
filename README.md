@@ -77,8 +77,11 @@ node infra/bsn.js console --target=<tên> bảng điều khiển ở máy này, 
 - **Môi trường** là một máy chạy hệ: máy này (`local`) và mỗi tệp `targets/<tên>.json`. Trang Tổng quan có mỗi môi trường một cột.
 - **Người dùng và vai trò (D-012)**: `admin` tạo người dùng (Developer, QA, Tech lead, DevOps); mật khẩu sinh ngẫu nhiên, hiện đúng một lần. Agent dùng token có vai trò `Agent`. Bảng phân quyền đặt cho từng vai trò ở từng môi trường: chỉ xem, deploy, hoặc deploy và rollback.
 - **Bảo vệ môi trường**: đòi người thứ hai duyệt, đòi gõ tên để xác nhận, chỉ nhận người có tên trong danh sách, khung giờ khóa hằng tuần. Máy chủ kiểm mọi điều này ở cả bước kiểm tra trước lẫn lúc chạy; trang chỉ hiện lại.
-- **Cấu hình có phiên bản**: mỗi lần lưu là một phiên bản (ai, lúc nào, ghi chú); lưu lệch phiên bản thì bị từ chối; khôi phục được bản cũ. Nằm ở `local/.run/console.config.json`, không chứa bí mật.
-- **Sổ thao tác**: ai làm gì, lúc nào, được hay bị từ chối; chỉ thêm. Nằm ở `local/.run/console.audit.jsonl`.
+- **Cấu hình có phiên bản**: mỗi lần lưu là một phiên bản (ai, lúc nào, ghi chú); lưu lệch phiên bản thì bị từ chối; khôi phục được bản cũ.
+- **Sổ thao tác**: ai làm gì, lúc nào, được hay bị từ chối; chỉ thêm; lọc được theo người, loại việc, kết quả và chữ.
+- **DB riêng của bảng điều khiển (D-014)**: một tệp SQLite `local/.run/console.db` (không vào git), mở bằng `node:sqlite` có sẵn trong Node nên không thêm thư viện nào. Trong đó: cấu hình và lịch sử phiên bản, bảng phân quyền, thành viên (mật khẩu chỉ ở dạng băm), sổ thao tác, yêu cầu chờ duyệt, lịch sử các lần chạy, môi trường do trang thêm. Mật khẩu quản trị và token của agent vẫn ở tệp `console.auth.json` (DB hỏng thì admin vẫn vào được). Lần khởi động đầu, dữ liệu ở `console.config.json` và `console.audit.jsonl` được chép vào DB; hai tệp cũ giữ nguyên. Sao lưu là chép tệp `console.db`. Bí mật của dịch vụ không bao giờ vào DB này.
+- **Thêm và gỡ môi trường trên trang (D-015)**: ở mục Environments, khai một máy đã có, hoặc cho bảng điều khiển TẠO một máy mới trên GCP (tốn tiền; trang hiện giá ước tính và bắt gõ tên). Tạo xong chỉ có một máy sẵn sàng nhận lệnh (Docker, Node, bộ lệnh điều khiển); không bật hệ, không deploy gì. Gỡ thì chọn giữ máy hay xóa cả máy (chỉ máy do bảng điều khiển tạo). Bảng điều khiển gọi `gcloud` bằng tài khoản đang đăng nhập ở máy chạy nó.
+- **Cập nhật trực tiếp**: trang nghe `GET /api/v1/events` (Server-Sent Events); máy chủ chỉ gửi TÊN chủ đề vừa đổi, trang tự hỏi lại dữ liệu. Mất kết nối thì trang quay về hỏi định kỳ.
 - **Ánh xạ nhánh chỉ là khai báo**: nền không tự deploy khi có push (S-029); không có công tắc tự chạy.
 - **Bảng điều khiển không có luật deploy riêng.** Mỗi mục của một lần chạy là một việc chạy trong một tiến trình riêng với đúng lệnh `deploy` hay `rollback` ở trên. Vì vậy bảng điều khiển tắt hay khởi động lại không dừng dịch vụ nào và không cắt ngang lần đưa lên đang chạy.
 - **Agent**: gửi header `Authorization: Bearer <token>`. Lệnh ghi của người (đăng nhập kiểu Basic) phải kèm header `x-bsn-console: 1`.
@@ -90,6 +93,7 @@ node infra/bsn.js console --target=<tên> bảng điều khiển ở máy này, 
 | `GET /api/v1/overview` | Mọi dịch vụ ở mọi môi trường; lọc bằng `projectId`, `environmentId`, `status`, `q` |
 | `GET /api/v1/environments` | Danh sách môi trường theo thứ tự, màu và mức bảo vệ đã đặt |
 | `GET /api/v1/services/<tên>` | Chi tiết một dịch vụ: từng môi trường, commit (đã có bản chưa), dòng thời gian deploy, biến môi trường (bí mật chỉ có tên) |
+| `GET /api/v1/services/<tên>/diff?from=&to=` | Tệp nào đổi giữa hai commit, thêm bớt bao nhiêu dòng |
 | `GET /api/v1/services/<tên>/logs?environmentId=&tail=` | Mấy dòng log cuối của container ở một môi trường (tối đa 500) |
 | `POST /api/v1/deployments/preflight` | Kiểm tra trước: từ bản nào sang bản nào, mục bị chặn, cổng an toàn (`gate`); không ghi gì |
 | `POST /api/v1/deployments` | `{kind, environmentId, items: [{serviceId, targetSha?}], confirmation?}`. `201` chạy ngay, `202` chờ người thứ hai duyệt, `422` bị chặn, `409` đang chạy dở |
@@ -98,7 +102,9 @@ node infra/bsn.js console --target=<tên> bảng điều khiển ở máy này, 
 | `GET /api/v1/config`, `PUT /api/v1/config`, `POST /api/v1/config/preview\|restore\|reset` | Cấu hình và lịch sử phiên bản (ghi: Admin, DevOps) |
 | `GET /api/v1/branches/matrix`, `POST /api/v1/branches/test` | Ánh xạ nhánh của từng dịch vụ; thử một tên nhánh |
 | `GET\|POST /api/v1/users`, `PATCH\|DELETE /api/v1/users/<tên>`, `POST /api/v1/users/<tên>/password` | Người dùng (Admin, DevOps) |
-| `GET /api/v1/audit`, `GET /api/v1/me` | Sổ thao tác; người đang gọi là ai |
+| `GET /api/v1/audit?actor=&action=&outcome=&q=`, `GET /api/v1/me` | Sổ thao tác (lọc được); người đang gọi là ai |
+| `GET /api/v1/environments/managed`, `POST /api/v1/environments`, `DELETE /api/v1/environments/<tên>`, `GET /api/v1/environments/operations/<mã>` | Môi trường do trang thêm; thêm (`mode`: `create` hoặc `register`), gỡ (`deleteMachine`), và tiến trình từng bước (Admin, DevOps) |
+| `GET /api/v1/events` | Dòng sự kiện: tên chủ đề vừa đổi (`runs`, `approvals`, `environments`, `config`) |
 
 Đường gọi cũ, một đích (đích là môi trường đầu tiên của bảng điều khiển); chúng đi qua cùng cổng an toàn, và từ chối môi trường đòi gõ tên hay đòi duyệt:
 
@@ -328,6 +334,9 @@ Từ `BSN_/`: `node --test infra/test/*.test.js infra/ci/test/*.test.js`. Từ g
 | `test/http.test.js` | Bảng điều khiển qua HTTP thật trên cổng ngẫu nhiên, các ca sử dụng thật trên bộ nối trong bộ nhớ |
 | `test/fleet.test.js` | Bảng điều khiển theo môi trường: tổng quan, chi tiết dịch vụ, kiểm tra trước, lần chạy nhiều mục, log và biến môi trường |
 | `test/safety.test.js` | Người dùng và vai trò, quyền theo môi trường, gõ tên xác nhận, duyệt, khung giờ khóa, cấu hình có phiên bản, ánh xạ nhánh, sổ thao tác |
+| `test/console-db.test.js` | DB SQLite của bảng điều khiển: cùng bộ kiểm cho bộ nối SQLite và bộ nối trong bộ nhớ; chép từ tệp cũ; dữ liệu còn sau khi khởi động lại |
+| `test/provision.test.js` | Thêm và gỡ môi trường: lệnh gcloud (giả), tạo máy qua bốn bước, xóa máy, quyền, xác nhận, nối lại sau khi khởi động lại |
+| `test/ui.test.js` | Giao diện bằng trình duyệt thật chạy ngầm (Edge hoặc Chrome); máy không có trình duyệt thì tự bỏ qua và nói rõ |
 | `test/web-text.test.js` | Giao diện không còn câu tiếng Việt và màn hình chỉ lấy chữ từ `text.js` |
 | `test/remote.test.js` | Đích từ xa: tờ khai đích, đoạn lệnh gửi sang máy đích, chờ việc qua mạng chập chờn, bộ nối SSH, và một ca đầu-cuối |
 | `test/job-executor.test.js` | Việc chạy trong tiến trình con: tham số, lỗi, và việc sống sót khi tiến trình cha chết |

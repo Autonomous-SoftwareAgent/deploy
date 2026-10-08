@@ -1,0 +1,148 @@
+id: "trinh-tu-yeu-cau-qua-cong-an-toan"
+type: "sequence"
+title: "Một yêu cầu deploy đi qua cổng an toàn và bước duyệt của bảng điều khiển"
+tab: "business"
+sources:
+  - "src/interfaces/http/controllers/fleet.js"
+  - "src/interfaces/http/controllers/admin.js"
+  - "src/application/approvals.js"
+  - "src/application/runs.js"
+  - "src/application/fleet.js"
+  - "src/domain/access.js"
+  - "src/application/audit.js"
+explain:
+  meaning: "Sơ đồ cho biết một lần bấm Deploy hay Rollback trên bảng điều khiển phải qua những chỗ kiểm nào trước khi một bản chương trình thật sự đổi trên một môi trường. Mọi chỗ kiểm nằm ở máy chủ, nên agent gọi thẳng JSON cũng không vượt được; và mọi kết cục (chạy, chờ duyệt, bị từ chối) đều để lại dấu trong sổ thao tác."
+  read:
+    - "Đọc từ trên xuống theo số thứ tự bước."
+    - "Khung rẽ nhánh ở giữa có ba kết cục: bị chặn, chờ người thứ hai duyệt, hoặc chạy ngay."
+    - "Nét đứt là câu trả lời về cho người gọi; mã 422, 202, 201 là ba kết cục tương ứng."
+    - "Hai bước cuối xảy ra với mọi lần chạy đã bắt đầu, dù đi qua nhánh duyệt hay chạy ngay."
+  details:
+    - term: "Kiểm tra trước và cổng an toàn"
+      text: "Tính cho từng mục xem có chạy được không (bản đã có chưa, đang chạy dở không) và tính chung cho cả yêu cầu: vai trò có đủ mức, người gọi có trong danh sách được phép, môi trường có đang trong khung giờ khóa. Luật ở domain/access.js và domain/fleet.js."
+    - term: "Ca sử dụng gửi yêu cầu và duyệt"
+      text: "Nơi duy nhất mọi yêu cầu đi qua (application/approvals.js): quyết định chạy ngay, cho nằm chờ, hay trả lời từ chối, và ghi sổ thao tác cho cả ba."
+    - term: "Bộ chạy việc của môi trường"
+      text: "Chạy đúng lệnh deploy hay rollback của dòng lệnh trong một tiến trình riêng (máy này) hoặc trên máy đích qua SSH; bảng điều khiển không có luật deploy riêng."
+    - term: "Người duyệt"
+      text: "Một người khác người gửi, có mức quyền deploy và rollback ở môi trường đó. Họ phải tự mở màn Approvals; chưa có thông báo."
+    - term: "Bước 4"
+      text: "Tất cả hoặc không: chỉ một mục bị chặn là không mục nào chạy."
+  pitfalls:
+    - "Sơ đồ không vẽ các đường /api cũ một đích; chúng qua cùng cổng an toàn nhưng từ chối luôn môi trường đòi gõ tên hay đòi duyệt."
+    - "Duyệt không có nghĩa là chắc chắn chạy: kiểm tra trước chạy lại lúc duyệt, nên môi trường đã đổi hoặc đã vào giờ khóa thì vẫn bị chặn."
+    - "Admin có sẵn bỏ qua bảng phân quyền nhưng vẫn bị giờ khóa, gõ tên và duyệt áp dụng."
+    - "Phân quyền, duyệt và giờ khóa mới được kiểm bằng test và trình duyệt với dữ liệu mẫu, chưa dùng với hệ thật."
+  basis: "dc90b3fcb884aaaf"
+autonumber: true
+participants:
+  - id: "nguoi_gui"
+    label: "Người gửi (trang hoặc agent)"
+    actor: true
+  - id: "may_chu"
+    label: "Máy chủ web của bảng điều khiển"
+    actor: false
+  - id: "duyet"
+    label: "Ca sử dụng gửi yêu cầu và duyệt"
+    actor: false
+  - id: "lan_chay"
+    label: "Ca sử dụng lần chạy"
+    actor: false
+  - id: "kiem_truoc"
+    label: "Kiểm tra trước và cổng an toàn"
+    actor: false
+  - id: "moi_truong"
+    label: "Bộ chạy việc của môi trường"
+    actor: false
+  - id: "nguoi_duyet"
+    label: "Người duyệt"
+    actor: true
+steps:
+  - message:
+      from: "nguoi_gui"
+      to: "may_chu"
+      text: "POST /api/v1/deployments (môi trường, dịch vụ, commit đích, chuỗi xác nhận)"
+      reply: false
+  - message:
+      from: "may_chu"
+      to: "duyet"
+      text: "Gửi yêu cầu kèm người gọi và vai trò"
+      reply: false
+  - message:
+      from: "duyet"
+      to: "lan_chay"
+      text: "Bắt đầu lần chạy"
+      reply: false
+  - message:
+      from: "lan_chay"
+      to: "kiem_truoc"
+      text: "Kiểm từng mục và cổng an toàn: quyền, danh sách người, giờ khóa"
+      reply: false
+  - alt:
+      branches:
+        - when: "Có mục bị chặn, hoặc cổng an toàn chặn, hoặc gõ sai tên xác nhận"
+          steps:
+            - message:
+                from: "duyet"
+                to: "may_chu"
+                text: "Từ chối; ghi sổ thao tác là bị từ chối"
+                reply: true
+            - message:
+                from: "may_chu"
+                to: "nguoi_gui"
+                text: "422 kèm lý do; không mục nào chạy"
+                reply: true
+        - when: "Môi trường đòi người thứ hai duyệt"
+          steps:
+            - message:
+                from: "duyet"
+                to: "duyet"
+                text: "Lưu yêu cầu chờ duyệt (hết hạn sau 24 giờ); ghi sổ thao tác"
+                reply: false
+            - message:
+                from: "may_chu"
+                to: "nguoi_gui"
+                text: "202 kèm mã yêu cầu chờ duyệt"
+                reply: true
+            - message:
+                from: "nguoi_duyet"
+                to: "may_chu"
+                text: "POST /api/v1/approvals/{mã}/approve"
+                reply: false
+            - message:
+                from: "duyet"
+                to: "duyet"
+                text: "Người duyệt phải khác người gửi và có mức quyền cao nhất ở môi trường đó"
+                reply: false
+            - message:
+                from: "duyet"
+                to: "lan_chay"
+                text: "Bắt đầu lại với đúng người gửi; kiểm tra trước chạy lại"
+                reply: false
+            - message:
+                from: "lan_chay"
+                to: "moi_truong"
+                text: "Chạy từng mục; ghi sổ thao tác người duyệt và mã lần chạy"
+                reply: false
+      otherwise:
+        steps:
+          - message:
+              from: "lan_chay"
+              to: "moi_truong"
+              text: "Chạy từng mục bằng đúng lệnh deploy hoặc rollback"
+              reply: false
+          - message:
+              from: "may_chu"
+              to: "nguoi_gui"
+              text: "201 kèm mã lần chạy; ghi sổ thao tác"
+              reply: true
+  - message:
+      from: "moi_truong"
+      to: "lan_chay"
+      text: "Báo dần từng bước và log; bản không khỏe thì tự bật lại bản cũ"
+      reply: true
+  - message:
+      from: "lan_chay"
+      to: "nguoi_gui"
+      text: "Báo tên chủ đề vừa đổi qua dòng sự kiện; trang tự hỏi lại tiến trình"
+      reply: true

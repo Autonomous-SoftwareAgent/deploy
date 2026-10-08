@@ -105,3 +105,51 @@ Design được tách thành yêu cầu, contract, tiêu chí nghiệm thu và t
 - contract: Đường gọi: GET /api/v1/me; GET, PUT /api/v1/config; POST /api/v1/config/preview, restore, reset; GET /api/v1/branches/matrix; POST /api/v1/branches/test; GET, POST /api/v1/users; PATCH, DELETE /api/v1/users/{tên}; POST /api/v1/users/{tên}/password; GET /api/v1/approvals; POST /api/v1/approvals/{mã}/approve, reject; GET /api/v1/audit; GET /api/v1/services/{tên}/logs. POST /api/v1/deployments nhận thêm confirmation, trả 201 (chạy), 202 (chờ duyệt), 422 (BLOCKED, CONFIRMATION_REQUIRED). Kết quả kiểm tra trước có gate: {blockers: [{code, message}], confirmation, approval}; mã chặn: FORBIDDEN, NOT_ALLOWED_USER, FREEZE_WINDOW. Lỗi khác: 403 FORBIDDEN, 409 CONFLICT, 404 NOT_FOUND. Cổng mới: ConfigStore (load, save), AuditLog (append, list), Runtime.logs. Tệp: local/.run/console.config.json, local/.run/console.audit.jsonl.
 - acceptance: test/safety.test.js và test/http.test.js qua: vai trò không đủ mức bị chặn ở kiểm tra trước, ở lúc chạy và ở đường /api cũ; thiếu hay sai tên xác nhận thì 422; trong giờ khóa thì chặn cả admin; yêu cầu ở môi trường đòi duyệt trả 202, người gửi và người mức 1 không duyệt được, duyệt xong mới đổi bản đang chạy, từ chối thì không đổi; lưu cấu hình lệch phiên bản trả 409; nơi lưu và sổ thao tác không chứa mật khẩu; mật khẩu đã qua kiểm không tốn thêm lần băm chậm; sai 5 lần trả 429. test/web-text.test.js qua: giao diện không còn câu tiếng Việt.
 - tasks:
+
+## BDK-S-005: DB riêng của bảng điều khiển bằng SQLite; bảng điều khiển không phải một service trong hệ
+- from: BDK-D-005
+- derived_from: 7caaae3c
+- status: ready
+- requirement:
+  1. Mỗi cổng lưu của bảng điều khiển (ConfigStore, AuditLog, Members, approvalStore, runStore, TargetStore, Meta) có bộ nối SQLite và bộ nối trong bộ nhớ, cùng qua một bộ kiểm.
+  2. DB tự tạo và tự nâng lược đồ khi mở; lược đồ mới hơn bản đang chạy thì từ chối mở và đóng tệp.
+  3. Lưu cấu hình ghi phiên bản mới, bảng phân quyền và bảng mức bảo vệ trong một giao dịch.
+  4. Sổ thao tác chỉ thêm; đọc mới trước, có giới hạn, lọc theo người, loại việc, kết quả và chữ.
+  5. Thành viên chỉ giữ dạng băm; mật khẩu quản trị và token của agent không nằm trong DB.
+  6. Yêu cầu chờ duyệt và lịch sử lần chạy còn nguyên sau khi bảng điều khiển khởi động lại; lần chạy đang dở lúc tắt hiện là interrupted; yêu cầu quá 24 giờ thì hết hạn.
+  7. Lần khởi động đầu chép cấu hình, sổ thao tác và người dùng từ các tệp cũ sang DB đúng một lần; tệp cũ không bị xóa.
+- contract: Tệp local/.run/console.db (SQLite, WAL). Bảng: config_versions, permissions, environment_protection, audit, members, approvals, runs, targets, meta. Cổng trong application/ports.js: members (list, get, put, remove), approvalStore và runStore (put, recent), targetStore (list, put, remove), meta (get, set), auditLog.list(limit, filter). GET /api/v1/audit nhận actor, action, outcome, q. Lần chạy có thêm trạng thái interrupted.
+- acceptance: test/console-db.test.js qua cho cả bộ nối SQLite và bộ nối trong bộ nhớ: phiên bản cấu hình, lọc sổ thao tác (kể cả dấu % là chữ thường), thành viên, kho đối tượng, môi trường do trang thêm; mở lại tệp vẫn còn dữ liệu; giao dịch hỏng không để lại gì; chép từ tệp cũ đúng một lần và giữ thứ tự; duyệt được một yêu cầu sau khi "khởi động lại"; lần chạy dở hiện interrupted. test/safety.test.js vẫn qua: nơi lưu và sổ thao tác không chứa mật khẩu.
+- tasks:
+
+## BDK-S-006: Thêm và gỡ môi trường trên trang, kể cả tạo và xóa máy trên GCP
+- from: BDK-D-006
+- derived_from: 99582402
+- status: ready
+- requirement:
+  1. Thêm môi trường có hai cách: register (khai máy đã có; máy phải trả lời lệnh điều khiển) và create (tạo máy mới trên cloud).
+  2. Tạo máy đi qua bốn bước có tiến trình và log: tạo máy, chờ SSH, cài đặt (không lấy repo dịch vụ, không bật hệ), kiểm lệnh điều khiển chạy được. Xong thì môi trường mới có trên Tổng quan mà không phải khởi động lại bảng điều khiển.
+  3. Tạo máy phải gõ lại đúng tên; chỉ nhận cỡ máy trong danh sách; mọi trường đi vào dòng lệnh chỉ nhận ký tự an toàn; tên trùng môi trường đang có thì từ chối.
+  4. Bước nào hỏng thì môi trường ghi là failed kèm lý do và không có cột mới.
+  5. Gỡ phải gõ lại tên; gỡ khỏi bảng điều khiển thì máy còn; xóa máy chỉ với máy do bảng điều khiển tạo; môi trường có sẵn của bảng điều khiển và môi trường khai bằng tệp không gỡ được từ trang.
+  6. Chỉ Admin và DevOps thêm, gỡ được; mọi lần (kể cả bị từ chối) vào sổ thao tác.
+  7. Bảng điều khiển khởi động lại thì nối lại các môi trường đã sẵn sàng; việc đang dở lúc tắt ghi là failed.
+  8. Lệnh status chạy được trên máy chỉ có repo deploy.
+- contract: GET /api/v1/environments/managed trả items, operations, options (machineTypes kèm usdPerDay ước tính, zone và configuration mặc định). POST /api/v1/environments nhận mode, name, machineType, zone, instance, configuration, confirmation; trả 202 kèm operation (create) hoặc environment (register); 400, 403, 422 CONFIRMATION_REQUIRED, 502 UNREACHABLE. DELETE /api/v1/environments/{tên} nhận deleteMachine, confirmation. GET /api/v1/environments/operations/{mã}. Cổng Cloud (createInstance, deleteInstance, instanceExists) và SetupScript (read). Lệnh thật: gcloud compute instances create với ubuntu-2404-lts-amd64, đĩa 20GB, nhãn created-by=bsn-console; delete với --delete-disks all. server/setup.sh nhận BSN_SKIP_SERVICE_REPOS=1.
+- acceptance: test/provision.test.js qua: luật yêu cầu; đúng dòng lệnh gcloud; chưa gõ tên thì không tạo gì; tạo xong đủ bốn bước, có cột mới, deploy vào đó được; cloud từ chối thì failed và không có cột; gỡ giữ máy và xóa máy; người không đủ quyền nhận 403; nối lại sau khi khởi động lại. test/bsn.test.js qua: status trên máy không có repo dịch vụ. Đã chạy thật 2026-10-08: tạo máy e2-small trên GCP qua bảng điều khiển trong 221 giây, xóa trong 60 giây, gcloud xác nhận máy và đĩa đã mất.
+- tasks:
+
+## BDK-S-007: Cập nhật trực tiếp bằng dòng sự kiện chỉ mang tên chủ đề; so sánh commit theo tệp; test giao diện bằng trình duyệt thật
+- from: BDK-D-007
+- derived_from: 4aac30c8
+- status: ready
+- requirement:
+  1. GET /api/v1/events đòi đăng nhập, trả dòng sự kiện; mỗi sự kiện chỉ là tên một chủ đề (runs, approvals, environments, config), không mang dữ liệu.
+  2. Lần chạy đổi bước hay có log, yêu cầu chờ duyệt đổi, việc tạo hay xóa máy có tiến triển, cấu hình được lưu: đều báo chủ đề tương ứng.
+  3. Máy chủ tắt được dù còn trang đang nghe.
+  4. Trang gom các tin dồn dập thành một lần hỏi lại; mất kết nối thì hỏi định kỳ như trước.
+  5. GET /api/v1/services/{tên}/diff trả tệp đổi giữa hai commit kèm số dòng thêm, bớt và tổng; thiếu commit trong lịch sử ở máy chạy bảng điều khiển thì báo NO_HISTORY.
+  6. Bộ test có test giao diện bằng trình duyệt thật; không có trình duyệt thì bỏ qua và nói rõ.
+- contract: GET /api/v1/events: text/event-stream; dòng "retry: 3000", mỗi tin "data: <chủ đề>", nhịp ": keep-alive" mỗi 25 giây. GET /api/v1/services/{tên}/diff?from=&to= (hai mã commit đủ 40 ký tự) trả {from, to, files: [{path, added, removed}], totals: {files, added, removed}}; tệp nhị phân có added và removed là null; 400 BAD_INPUT, 404 NO_HISTORY hoặc UNKNOWN_SERVICE. Cổng Source có diffStat(repo, from, to). Biến BSN_BROWSER chỉ định trình duyệt cho test, BSN_SKIP_UI=1 tắt test giao diện.
+- acceptance: test/fleet.test.js qua: dòng sự kiện đòi đăng nhập, nhận "data: runs" khi có lần chạy, không lộ tên dịch vụ hay mã commit, máy chủ tắt được khi kết nối còn mở; diff trả đúng tệp và tổng, commit lạ là NO_HISTORY. test/ui.test.js qua với Edge chạy ngầm: trang báo đang nhận trực tiếp, ngăn tệp đổi hiện trong hộp thoại, đi hết các màn không lỗi JavaScript.
+- tasks:

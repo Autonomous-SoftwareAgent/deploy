@@ -127,7 +127,11 @@ Mọi hàm trả Promise (trừ `ConfigFiles.hostPath`, `Clock`, `Random`, `Hash
 
 - `domain/access.js`: vai trò, mức quyền, cổng an toàn của một yêu cầu (`gate`: quyền, giới hạn theo tên, giờ khóa, chuỗi phải gõ, có cần duyệt không), kiểm một bản cấu hình. `domain/branches.js`: ánh xạ nhánh (chỉ là khai báo, không tự deploy).
 - `application/settings.js` (cấu hình có phiên bản), `application/approvals.js` (mọi yêu cầu đi qua đây: chạy ngay, chờ duyệt, hay bị từ chối, đều ghi sổ), `application/audit.js` (sổ thao tác), `application/auth.js` (admin, người dùng có vai trò, token của agent), `application/get-logs.js` (log của container).
-- Cổng mới: `ConfigStore`, `AuditLog` (bộ nối trên đĩa ở `infrastructure/fs-console-records.js`, bộ nối trong bộ nhớ ở `memory/storage.js`); `Runtime.logs`.
+- Cổng lưu của bảng điều khiển: `ConfigStore`, `AuditLog`, `Members`, `approvalStore`, `runStore`, `TargetStore`, `Meta`. Bộ nối thật là SQLite (`infrastructure/sqlite/console-db.js` mở DB và giữ lược đồ, `console-stores.js` mỗi cổng một hàm dựng); bộ nối trong bộ nhớ ở `memory/storage.js`; `test/console-db.test.js` chạy cùng một bộ kiểm cho cả hai. `infrastructure/fs-console-records.js` chỉ còn để đọc tệp cũ khi chép sang DB (`application/import-records.js`).
+- Thêm và gỡ môi trường: luật ở `domain/provision.js`, ca sử dụng `application/provision.js`, cổng `Cloud` và `SetupScript` (`infrastructure/gcloud-compute.js`; trong bộ nhớ ở `memory/platform.js`). Danh sách môi trường của bảng điều khiển là danh sách SỐNG (`roster` trong `composition/console.js`): thêm hay gỡ một môi trường không phải khởi động lại.
+- Cập nhật trực tiếp: `application/changes.js` (bảng tin tên chủ đề), `interfaces/http/controllers/events.js` (dòng sự kiện); `server.js` giữ các kết nối đang mở và đóng chúng khi tắt.
+- Lớp lắp ráp: `composition.js` là cửa vào, mã nằm ở `composition/core.js` (cổng và ca sử dụng của dòng lệnh) và `composition/console.js` (bảng điều khiển).
+- `Runtime.logs`, `Source.diffStat` là hai hàm cổng thêm cho tab Logs và ngăn so sánh theo tệp.
 - Luồng một yêu cầu: `controllers/fleet.js` -> `approvals.submit` -> `runs.start` -> `fleet.preflight` (kèm `access.gate`) -> bộ chạy việc của môi trường.
 
 ### Giao diện (`web/`)
@@ -135,7 +139,7 @@ Mọi hàm trả Promise (trừ `ConfigFiles.hostPath`, `Clock`, `Random`, `Hash
 - `index.html`, `styles.css`: không có JavaScript hay CSS viết trong HTML, nên chính sách nội dung của trang không có `unsafe-inline`.
 - `text.js`, `text-config.js`: MỌI chữ hiện trên trang (tiếng Anh). Màn hình không tự viết chữ; test `web-text.test.js` giữ điều đó.
 - `dom.js` (dựng phần tử, chữ chỉ qua `textContent`), `api.js` (mọi lời gọi tới máy chủ), `store.js` (trạng thái và thao tác của Tổng quan, dịch vụ, hộp thoại, lần chạy), `config-store.js` (bản nháp cấu hình, người dùng, duyệt).
-- `views/`: `shell` (thanh bên), `overview`, `service`, `dialog`, `run`, `approvals`, `config` cùng `config-environments`, `config-branches`, `config-access`, `config-history`. Mỗi tệp là hàm từ dữ liệu ra phần tử.
+- `views/`: `shell` (thanh bên), `overview`, `service`, `dialog`, `run`, `approvals`, `config` cùng `config-environments`, `config-machines` (thêm, gỡ môi trường), `config-branches`, `config-access`, `config-history`. Mỗi tệp là hàm từ dữ liệu ra phần tử.
 - `main.js`: nối `store` với `views`; chỉ vẽ lại phần có dữ liệu đổi.
 
 ## 7. Một lần bấm Deploy đi qua các lớp

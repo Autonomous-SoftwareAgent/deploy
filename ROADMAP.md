@@ -77,3 +77,10 @@ Thêm một dịch vụ nhỏ chỉ bằng: tạo repo `svc-<tên>` với `bsn.c
 - Workflow `prune` chưa chạy lần nào trên GitHub.
 - Công cụ tạo dịch vụ mới (repo harness) chưa đặt danh tính commit ẩn danh và chưa tạo sẵn `bsn.ci.json`, workflow, tờ khai báo.
 - Trang tổng quan "dịch vụ nào đang chạy bản nào" kiểu Vercel: để sau khi nút bấm đã chạy ổn; nó gọi cùng các lệnh.
+
+## Việc tạm dừng, chờ infra có VM riêng (người dùng chốt 2026-10-08)
+- **Tự deploy khi có push** (chế độ `auto` của ánh xạ nhánh): bảng điều khiển chỉ nghe ở `127.0.0.1` nên chưa nhận được tin từ GitHub; và cần người dùng nới S-029 cho trường hợp này. Hiện ánh xạ nhánh chỉ là khai báo.
+- **Sao lưu DB của bảng điều khiển** (`local/.run/console.db`) ra ngoài máy theo lịch; hiện sao lưu là chép tệp bằng tay.
+- **Hạn mức cho việc tạo máy từ trang** (số máy, tiền): hiện ai là Admin hay DevOps đều tạo được.
+- Kiểm trên máy thật sau lần đẩy kế tiếp: máy vừa tạo từ trang hiện "Not deployed" (lệnh `status` mới), và deploy một dịch vụ vào máy đó.
+
