@@ -7,12 +7,16 @@ import { overviewView } from './views/overview.js';
 import { serviceView } from './views/service.js';
 import { dialogView } from './views/dialog.js';
 import { runView } from './views/run.js';
+import { configActions, isDirty } from './config-store.js';
+import { configView } from './views/config.js';
+import { approvalsView } from './views/approvals.js';
 
 const side = document.getElementById('side');
 const main = document.getElementById('main');
 const overlay = document.getElementById('overlay');
 
-const VIEWS = { denied: deniedView, overview: overviewView, service: serviceView, run: runView, loading: () => h('div', { class: 'empty' }, T.loading) };
+Object.assign(actions, configActions);
+const VIEWS = { denied: deniedView, overview: overviewView, service: serviceView, run: runView, config: configView, approvals: approvalsView, loading: () => h('div', { class: 'empty' }, T.loading) };
 
 onRender(() => {
   mount(side, sideView(state, actions));
@@ -23,5 +27,7 @@ onRender(() => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.dialog) actions.closeDialog(); });
 
 let n = 0;
-setInterval(() => actions.tick(n += 1), 1000);
-actions.boot();
+setInterval(() => { actions.tick(n += 1); if (n % 10 === 0 && state.view !== 'denied' && state.view !== 'loading') actions.loadApprovals(); }, 1000);
+actions.boot().then(() => { actions.loadMe(); actions.loadApprovals(); });
+// Rời trang khi bản nháp cấu hình chưa lưu: để trình duyệt hỏi lại.
+window.addEventListener('beforeunload', (e) => { if (isDirty()) e.preventDefault(); });

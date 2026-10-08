@@ -69,7 +69,7 @@ export function overviewView(state, actions) {
       h('div', { class: 'trow thead', css: grid },
         h('div', { class: 'c' }, h('input', { type: 'checkbox', 'aria-label': O.selectAll, checked: allSelected, onchange: () => actions.selectAll(visible, !allSelected) })),
         h('div', { class: 'c' }, O.colService),
-        envs.map((e) => h('div', { class: 'c' }, h('span', { class: 'dot', css: { background: e.color } }), e.name, e.protected ? h('span', { class: 'chip' }, O.protected) : null)),
+        envs.map((e) => h('div', { class: 'c' }, h('span', { class: 'dot', css: { background: e.color } }), e.name, e.protected ? h('span', { class: 'chip', css: { 'margin-left': '8px' } }, O.protected) : null)),
         h('div', { class: 'c' })),
       rows,
       rows.length ? null : h('div', { class: 'empty' }, O.empty)),

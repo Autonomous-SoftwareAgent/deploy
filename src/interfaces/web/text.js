@@ -19,7 +19,7 @@ export const T = {
   nav: {
     label: 'Main navigation', overview: 'System overview', lastRun: 'Last viewed run', running: 'Running', configuration: 'Configuration',
     run: (r) => `${T.kind[r.kind] || r.kind} ${what(r.items.length, r.items[0].serviceId)} · ${r.environment.name}`,
-    signedIn: (who) => `Signed in as ${who}`, signOutHint: 'To sign out, close the browser.',
+    signedIn: (who, role) => `Signed in as ${who}${role ? ` (${role})` : ''}`, signOutHint: 'To sign out, close the browser.',
   },
   login: {
     title: 'Sign-in required', denied: 'The browser asks for a user name and password when the page opens. The user name is admin.', retry: 'Try again',

@@ -2,6 +2,7 @@
 // không tự quyết gì. Bấm xác nhận thì máy chủ kiểm tra lại lần nữa trước khi chạy.
 import { h, short } from '../dom.js';
 import { T } from '../text.js';
+import { C } from '../text-config.js';
 
 const D = T.dialog;
 
@@ -38,8 +39,11 @@ export function dialogView(state, actions) {
   const env = envs.find((e) => e.id === d.environmentId) || { name: d.environmentId, description: '' };
   const n = d.items.length;
   const one = d.items[0].serviceId;
-  const can = !!d.pre && d.pre.canProceed && !d.loading && !d.sending;
-  const label = d.loading ? D.checking : d.sending ? D.sending : d.pre && !d.pre.canProceed ? D.cannot : D.confirm(d.kind, n, one, env.name);
+  // Cổng an toàn do máy chủ tính: chặn chung (quyền, giờ khóa), chuỗi phải gõ để xác nhận, và có cần người thứ hai duyệt không.
+  const gate = (d.pre && d.pre.gate) || { blockers: [], confirmation: null, approval: false };
+  const typedOk = !gate.confirmation || d.typed === gate.confirmation;
+  const can = !!d.pre && d.pre.canProceed && typedOk && !d.loading && !d.sending;
+  const label = d.loading ? D.checking : d.sending ? D.sending : d.pre && !d.pre.canProceed ? D.cannot : gate.approval ? C.approval.request : D.confirm(d.kind, n, one, env.name);
   const heading = D.heading(d.kind, n, one, env.name);
   return h('div', { class: 'ovl' }, h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': heading },
     h('div', { class: `mh ${rb ? 'rollback' : 'deploy'}` },
@@ -47,13 +51,17 @@ export function dialogView(state, actions) {
       h('button', { class: 'ib', 'aria-label': D.close, onclick: actions.closeDialog }, '×')),
     h('div', { class: 'mb' },
       h('div', null, h('div', { class: 'lab' }, D.environment),
-        h('div', { class: 'seg' }, envs.map((e) => h('button', { class: `segb ${e.id === d.environmentId ? 'on' : ''}`, onclick: () => actions.dialogEnvironment(e.id) }, h('span', { class: 'dot', css: { background: e.color } }), e.name))),
+        h('div', { class: 'seg' }, envs.map((e) => h('button', { class: `segb ${e.id === d.environmentId ? 'on' : ''}`, onclick: () => actions.dialogEnvironment(e.id) }, h('span', { class: 'dot', css: { background: e.color } }), e.name, e.protected ? h('span', { class: 'chip', css: { 'margin-left': '6px' } }, T.overview.protected) : null))),
         h('div', { class: 'mut xs', css: { 'margin-top': '6px' } }, env.description || '')),
       d.error ? h('div', { class: 'callout bad' }, h('b', null, d.error)) : null,
+      gate.blockers.map((b) => h('div', { class: 'callout bad' }, h('b', null, b.message), h('span', { class: 'xs mono' }, b.code))),
       d.pre ? d.pre.items.map((item) => targetCard(item, d, actions, n > 1)) : h('div', { class: 'empty' }, d.loading ? D.checkingServer : D.noResult),
+      gate.approval && d.pre && d.pre.canProceed ? h('div', { class: 'callout warn' }, h('b', null, C.approval.need(env.name))) : null,
+      gate.confirmation && d.pre && d.pre.canProceed ? h('label', { class: 'fld' }, h('span', null, C.approval.typeToConfirm(gate.confirmation)),
+        h('input', { class: 'inp mono', id: 'confirm-name', 'aria-label': C.approval.typeLabel, autocomplete: 'off', value: d.typed, oninput: (e) => { d.typed = e.target.value; document.getElementById('confirm-go').disabled = !(d.pre.canProceed && d.typed === gate.confirmation); } })) : null,
       h('div', { class: 'callout info' }, rb ? D.noteRollback : D.noteDeploy)),
     h('div', { class: 'mf' },
       h('span', { class: 'xs mut' }, D.foot),
       h('div', { class: 'row' }, h('button', { class: 'btn', onclick: actions.closeDialog }, D.cancel),
-        h('button', { class: `btn ${rb ? 'rb' : 'pri'}`, disabled: !can, onclick: actions.confirmDialog }, label)))));
+        h('button', { class: `btn ${rb ? 'rb' : 'pri'}`, id: 'confirm-go', disabled: !can, onclick: actions.confirmDialog }, label)))));
 }

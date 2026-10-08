@@ -2,14 +2,14 @@
 import { api, errorOf } from './api.js';
 
 export const state = {
-  view: 'loading', // loading | denied | overview | service | run
+  view: 'loading', // loading | denied | overview | service | run | config | approvals
   filters: { projectId: 'all', environmentId: 'all', status: 'all', q: '' },
   overview: null, // câu trả lời của GET /api/v1/overview
   error: '', // lỗi của lần đọc gần nhất
   collapsed: {}, // nhóm dự án đang gập
   selected: {}, // dịch vụ đang được chọn để thao tác nhiều cái một lượt
   serviceId: null, service: null, serviceTab: 'deployments',
-  dialog: null, // { kind, environmentId, items: [{serviceId, targetSha}], pre, loading, error, commits: {dịch-vụ: [...]}, sending }
+  dialog: null, // { kind, environmentId, items: [{serviceId, targetSha}], pre, loading, error, commits: {dịch-vụ: [...]}, sending, typed }
   run: null, // { id, data, log: [], after }
   activeRuns: [],
 };
@@ -17,7 +17,7 @@ export const state = {
 let render = () => {};
 let lastPainted = '';
 /** Vẽ lại khi dữ liệu thật sự đổi (lần hỏi định kỳ trả cùng dữ liệu thì không vẽ lại, để ô chọn đang mở không bị đóng). */
-function paint(force) {
+export function paint(force) {
   const snap = JSON.stringify(state);
   if (!force && snap === lastPainted) return;
   lastPainted = snap;
@@ -89,22 +89,24 @@ export const actions = {
   async openDialog(kind, serviceIds, opts = {}) {
     const envs = (state.overview && state.overview.allEnvironments) || [];
     if (!serviceIds.length || !envs.length) return;
-    state.dialog = { kind, environmentId: opts.environmentId || envs[0].id, items: serviceIds.map((id) => ({ serviceId: id, targetSha: serviceIds.length === 1 ? opts.targetSha || null : null })), pre: null, loading: true, error: '', commits: {}, sending: false };
+    state.dialog = { kind, environmentId: opts.environmentId || envs[0].id, items: serviceIds.map((id) => ({ serviceId: id, targetSha: serviceIds.length === 1 ? opts.targetSha || null : null })), pre: null, loading: true, error: '', commits: {}, sending: false, typed: '' };
     paint();
     preflight();
     // Danh sách commit để chọn commit đích: lấy một lần cho mỗi dịch vụ trong hộp thoại.
     for (const id of serviceIds) api.service(id).then((r) => { if (state.dialog && r.status === 200) { state.dialog.commits[id] = r.body.commits; paint(); } });
   },
   closeDialog() { state.dialog = null; paint(); },
-  dialogEnvironment(id) { const d = state.dialog; if (!d) return; d.environmentId = id; for (const i of d.items) i.targetSha = null; preflight(); },
+  dialogEnvironment(id) { const d = state.dialog; if (!d) return; d.environmentId = id; d.typed = ''; for (const i of d.items) i.targetSha = null; preflight(); },
   dialogTarget(serviceId, sha) { const d = state.dialog; if (!d) return; const it = d.items.find((x) => x.serviceId === serviceId); if (it) it.targetSha = sha; preflight(); },
   async confirmDialog() {
     const d = state.dialog;
     if (!d || d.sending) return;
     d.sending = true; paint();
-    const r = await api.start({ kind: d.kind, environmentId: d.environmentId, items: d.items.map((i) => ({ serviceId: i.serviceId, targetSha: i.targetSha })) });
+    const r = await api.start({ kind: d.kind, environmentId: d.environmentId, items: d.items.map((i) => ({ serviceId: i.serviceId, targetSha: i.targetSha })), confirmation: d.typed || undefined });
     if (state.dialog !== d) return;
     d.sending = false;
+    // 202: môi trường đòi người thứ hai duyệt; yêu cầu nằm chờ ở màn Approvals.
+    if (r.status === 202) { state.dialog = null; state.selected = {}; state.view = 'approvals'; state.approvals = [r.body.approval, ...(state.approvals || [])]; return paint(); }
     if (r.status !== 201) { d.error = errorOf(r); if (r.body.error && r.body.error.details && r.body.error.details.preflight) d.pre = r.body.error.details.preflight; return paint(); }
     state.dialog = null; state.selected = {};
     actions.openRun(r.body.runId, r.body.run);
