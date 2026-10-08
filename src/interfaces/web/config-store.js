@@ -2,10 +2,11 @@
 // Trạng thái và thao tác của phần cấu hình, phân quyền, duyệt và sổ thao tác. Bản NHÁP nằm ở trình duyệt; chỉ khi bấm lưu
 // máy chủ mới kiểm và ghi thành một phiên bản mới. Màn hình chỉ đọc state.cfg và gọi các hàm ở đây.
 import { api, errorOf } from './api.js';
-import { state, paint } from './store.js';
+import { state, paint, actions as pageActions } from './store.js';
 
 const copy = (v) => JSON.parse(JSON.stringify(v));
-const fresh = () => ({ tab: 'environments', loaded: null, draft: null, note: '', preview: null, error: '', saving: false, users: null, roles: [], shownPassword: null, matrix: null, tester: null, audit: null, auditFilter: { actor: '', action: '', outcome: '', q: '' }, confirmWord: '', importText: '', importError: '' });
+const fresh = () => ({ tab: 'environments', loaded: null, draft: null, note: '', preview: null, error: '', saving: false, users: null, roles: [], shownPassword: null, matrix: null, tester: null, audit: null, auditFilter: { actor: '', action: '', outcome: '', q: '' },
+  managed: null, envForm: { mode: 'create', name: '', machineType: '', zone: '', instance: '', confirmation: '' }, envError: '', removeWords: {}, confirmWord: '', importText: '', importError: '' });
 state.cfg = fresh();
 state.approvals = [];
 state.me = null;
@@ -21,8 +22,19 @@ async function loadConfig(keepDraft) {
   paint();
 }
 
+/** Môi trường do trang thêm và các việc tạo, xóa máy đang chạy. Số môi trường đổi thì nạp lại tổng quan và cấu hình. */
+async function loadManaged() {
+  const r = await api.managed();
+  if (r.status !== 200) return;
+  const before = state.cfg.managed ? state.cfg.managed.items.map((e) => `${e.name}:${e.state}`).join() : null;
+  state.cfg.managed = r.body;
+  if (before !== null && before !== r.body.items.map((e) => `${e.name}:${e.state}`).join()) { await pageActions.reloadOverview(); await loadConfig(isDirty()); }
+  paint();
+}
+
 async function loadSide() {
   const tab = state.cfg.tab;
+  if (tab === 'environments') await loadManaged();
   if (tab === 'matrix' || tab === 'rules') { const r = await api.branchMatrix(); if (r.status === 200) state.cfg.matrix = r.body.items; }
   if (tab === 'access' && state.cfg.loaded && state.cfg.loaded.canEdit) { const r = await api.users(); if (r.status === 200) { state.cfg.users = r.body.items; state.cfg.roles = r.body.roles; } }
   if (tab === 'history') { const r = await api.audit(state.cfg.auditFilter); if (r.status === 200) state.cfg.audit = r.body; }
@@ -50,6 +62,23 @@ export const configActions = {
     await after(r, async () => { state.cfg.note = ''; state.cfg.preview = null; await loadConfig(false); await loadSide(); });
   },
   async restore(version) { await after(await api.configRestore(version), async () => { await loadConfig(false); await loadSide(); }); },
+  envFormMode(mode) { state.cfg.envForm.mode = mode; state.cfg.envForm.confirmation = ''; state.cfg.envError = ''; paint(true); },
+  envFormSet(patch) { Object.assign(state.cfg.envForm, patch); paint(true); },
+  async addEnvironment() {
+    const f = state.cfg.envForm;
+    const r = await api.environmentAdd({ mode: f.mode, name: f.name, machineType: f.machineType || undefined, zone: f.zone || undefined, instance: f.instance || undefined, confirmation: f.confirmation });
+    if (r.status >= 400 || r.status === 0) { state.cfg.envError = errorOf(r); return paint(true); }
+    state.cfg.envError = ''; state.cfg.envForm = { mode: f.mode, name: '', machineType: '', zone: '', instance: '', confirmation: '' };
+    await loadManaged(); await pageActions.reloadOverview(); await loadConfig(isDirty());
+  },
+  async removeEnvironment(name, deleteMachine) {
+    const r = await api.environmentRemove(name, { deleteMachine, confirmation: state.cfg.removeWords[name] });
+    if (r.status >= 400 || r.status === 0) { state.cfg.envError = errorOf(r); return paint(true); }
+    delete state.cfg.removeWords[name]; state.cfg.envError = '';
+    await loadManaged(); await pageActions.reloadOverview(); await loadConfig(isDirty());
+  },
+  /** Gọi định kỳ khi đang ở mục Environments: việc tạo hay xóa máy chạy vài phút, trang theo dõi từng bước. */
+  async pollEnvironments() { const m = state.cfg.managed; if (m && (m.operations.some((o) => o.status === 'running') || m.items.some((e) => e.state === 'creating' || e.state === 'deleting'))) await loadManaged(); },
   async filterAudit(patch) { Object.assign(state.cfg.auditFilter, patch); await loadSide(); },
   setConfirmWord(v) { state.cfg.confirmWord = v; paint(); },
   async reset() { state.cfg.confirmWord = ''; await after(await api.configReset(), async () => { await loadConfig(false); }); },

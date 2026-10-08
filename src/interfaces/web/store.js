@@ -77,6 +77,7 @@ async function preflight() {
 
 export const actions = {
   async boot() { paint(true); await loadOverview(); await loadActiveRuns(); },
+  reloadOverview: () => loadOverview(),
   goOverview() { state.view = 'overview'; state.serviceId = null; state.service = null; paint(); loadOverview(); },
   setFilter(patch) { Object.assign(state.filters, patch); paint(); loadOverview(); },
   toggleGroup(id) { state.collapsed[id] = !state.collapsed[id]; paint(); },

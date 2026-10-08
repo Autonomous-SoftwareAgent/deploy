@@ -28,7 +28,8 @@ export function configView(state, actions) {
   const cfg = state.cfg;
   const title = (C.nav.find(([k]) => k === cfg.tab) || ['', ''])[1];
   if (!cfg.loaded || !cfg.draft) return h('div', null, h('div', { class: 'ph' }, h('h1', { class: 'h1' }, title)), h('div', { class: 'empty' }, cfg.error || C.reading));
-  const envs = (state.overview && state.overview.allEnvironments) || [];
+  // Chỉ các môi trường có trong bản nháp: môi trường vừa thêm sẽ có sau khi cấu hình được nạp lại.
+  const envs = ((state.overview && state.overview.allEnvironments) || []).filter((e) => cfg.draft.environments[e.id]);
   return h('div', null,
     h('div', { class: 'ph' }, h('h1', { class: 'h1' }, title)),
     cfg.loaded.canEdit ? null : h('div', { class: 'banner warn' }, C.readOnly),

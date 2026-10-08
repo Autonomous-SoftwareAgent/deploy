@@ -2,6 +2,7 @@
 // hay xóa được từ trang này (thêm bằng tờ khai đích trên máy chạy bảng điều khiển); ở đây chỉ đặt cách hiện và mức bảo vệ.
 import { h } from '../dom.js';
 import { C } from '../text-config.js';
+import { machinesPanel } from './config-machines.js';
 
 const E = C.env;
 
@@ -11,6 +12,7 @@ function toggle(label, checked, locked, onchange, extra) {
 }
 
 export function environmentsTab({ cfg, envs, actions, locked }) {
+  const machines = machinesPanel({ cfg, actions, locked });
   const draft = cfg.draft.environments;
   const ordered = [...envs].sort((a, b) => draft[a.id].order - draft[b.id].order || a.id.localeCompare(b.id));
   /** Đổi chỗ hai môi trường liền nhau rồi đánh số lại, để thứ tự luôn là 0, 1, 2... */
@@ -39,5 +41,6 @@ export function environmentsTab({ cfg, envs, actions, locked }) {
               h('div', { class: 'row' },
                 h('label', { class: 'fld', css: { width: '160px' } }, h('span', null, E.from), h('input', { class: 'inp mono', disabled: locked, placeholder: E.momentHint, value: p.freeze.from, onchange: (ev) => set((x) => { x.protect.freeze.from = ev.target.value.trim(); }) })),
                 h('label', { class: 'fld', css: { width: '160px' } }, h('span', null, E.to), h('input', { class: 'inp mono', disabled: locked, placeholder: E.momentHint, value: p.freeze.to, onchange: (ev) => set((x) => { x.protect.freeze.to = ev.target.value.trim(); }) })))))));
-    }));
+    }),
+    machines);
 }
