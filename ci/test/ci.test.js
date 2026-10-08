@@ -39,6 +39,41 @@ test('decide: khai báo trước, build sau: commit KHÔNG phải bản đã kha
   assert.match(decide(base({ declaration: { commit: OTHER } })).reason, /ghim nó vào tờ khai báo.*chạy lại workflow/);
 });
 
+test('decide: khai commit nào thì đóng gói ĐÚNG commit đó, kể cả khi nó nằm dưới đầu nhánh; test cả đầu nhánh lẫn commit đó', () => {
+  // Chế độ pin (workflow service-pin): đầu nhánh là SHA, tờ khai báo ghi OTHER, OTHER đã có trên nhánh và chưa có bản.
+  const d = decide(base({ mode: 'pin', declaration: { commit: OTHER }, onBranch: true, imageExists: false }));
+  assert.equal(d.build, true);
+  assert.equal(d.commit, OTHER, 'đóng gói commit ĐÃ KHAI, không phải đầu nhánh');
+  assert.equal(d.tag, 'main-ffffffffffff');
+  assert.deepEqual(d.refs, [SHA, OTHER], 'bản chỉ sinh ra từ commit đã qua test: test cả hai');
+  assert.match(d.reason, /nằm dưới đầu nhánh c14ccf45722e/);
+  // Commit đã khai trùng đầu nhánh: chỉ một commit phải test.
+  assert.deepEqual(decide(base({ mode: 'pin', onBranch: true })).refs, [SHA]);
+  // Workflow service-image được chỉ đúng commit đó thì cũng đóng gói nó.
+  const img = decide(base({ buildCommit: OTHER, declaration: { commit: OTHER }, onBranch: true }));
+  assert.equal(img.build, true);
+  assert.equal(img.commit, OTHER);
+});
+
+test('decide: commit đã khai chưa có trên nhánh, đã có bản, hoặc không phải commit được chỉ định thì KHÔNG đóng gói (không phải lỗi)', () => {
+  const notPushed = decide(base({ mode: 'pin', declaration: { commit: OTHER }, onBranch: false }));
+  assert.equal(notPushed.build, false);
+  assert.ok(!notPushed.error);
+  assert.match(notPushed.reason, /chưa có trên nhánh main vừa đẩy/);
+  assert.deepEqual(notPushed.refs, [SHA], 'không đóng gói thì chỉ test commit đang chạy');
+  const built = decide(base({ mode: 'pin', onBranch: true, imageExists: true }));
+  assert.equal(built.build, false);
+  assert.match(built.reason, /đã có bản đóng gói/);
+  // Chỉ định một commit KHÁC commit đã khai: từ chối, dù commit đó có trên nhánh.
+  const wrong = decide(base({ buildCommit: OTHER, declaration: { commit: SHA }, onBranch: true }));
+  assert.equal(wrong.build, false);
+  assert.match(wrong.reason, /không phải bản đã khai/);
+  // Chế độ pin mà chưa ghim gì: xét commit đang chạy, không đóng gói.
+  assert.equal(decide(base({ mode: 'pin', declaration: { commit: null } })).build, false);
+  // Nhánh khác main: commit đã khai cũng không được đóng gói.
+  assert.equal(decide(base({ mode: 'pin', ref: 'refs/heads/thu', declaration: { commit: OTHER }, onBranch: true })).build, false);
+});
+
 test('decide: nhánh khác main và pull request KHÔNG đóng gói dù commit trùng bản đã khai', () => {
   for (const [over, re] of [
     [{ ref: 'refs/heads/feature/x' }, /chỉ nhánh main/],
@@ -176,4 +211,48 @@ test('dọn bản: mặc định chỉ in kế hoạch, --apply mới gọi xóa
   h = hubFake({});
   assert.equal(await prune.main(['--apply'], { root, env: {}, fetch: h.fetchFn, log: () => {}, pinnedTags: pinned }), 0);
   assert.equal(h.calls.length, 0);
+});
+
+// --- Chạy thử bản đóng gói trước khi đẩy (ci/smoke.js) ---
+const smoke = require('../smoke');
+
+test('chạy thử: lệnh docker sinh từ tờ khai báo, cùng biến môi trường như lúc chạy trong hệ; không bật đồ giả lập', () => {
+  const svc = { port: { local: 8000, container: 8080 }, health: '/health', env: { MODE: 'x' }, secretEnv: ['API_TOKEN'],
+    database: { name: 'shop', urlEnv: 'DB_URL', urlFormat: 'postgres://{user}:{password}@{host}:{port}/{db}' },
+    broker: { bootstrapEnv: 'KAFKA' }, topics: ['a.b'], files: [{ from: 'conf/app.json', to: '/config/app.json' }], sidecars: { 'fake-gw': {} } };
+  const p = smoke.plan(svc, { id: 'ab12', image: 'bsn-local:abc', source: '/src/shop', secrets: { BSN_PG_PASSWORD: 'pw', API_TOKEN: 'tok' } });
+  assert.deepEqual(p.containers.map((c) => c.role), ['postgres', 'broker', 'service']);
+  assert.equal(p.env.DB_URL, 'postgres://bsn:pw@postgres:5432/shop');
+  assert.equal(p.env.KAFKA, 'redpanda:9092');
+  assert.equal(p.env.API_TOKEN, 'tok');
+  const run = p.containers[2].args;
+  assert.equal(run[run.length - 1], 'bsn-local:abc', 'bản được chạy thử là đúng bản vừa đóng gói');
+  assert.ok(run.includes('127.0.0.1::8080'), 'cổng chỉ mở trên máy chạy thử, do Docker chọn');
+  assert.ok(run.some((a) => /conf\/app\.json:\/config\/app\.json:ro$/.test(a)), 'tệp cấu hình lấy từ mã của dịch vụ, gắn chỉ đọc');
+  assert.ok(!JSON.stringify(p).includes('fake-gw'), 'đồ giả lập không được bật');
+  assert.deepEqual(p.topics, ['a.b']);
+  assert.deepEqual(p.health, { containerPort: 8080, path: '/health' });
+  // Dịch vụ không khai cơ sở dữ liệu và broker thì chỉ có chính nó.
+  const alone = smoke.plan({ port: { container: 80 }, health: '/' }, { id: 'x', image: 'i', source: '.', secrets: { BSN_PG_PASSWORD: 'pw' } });
+  assert.deepEqual(alone.containers.map((c) => c.role), ['service']);
+  assert.deepEqual(alone.topics, []);
+});
+
+test('chạy thử: PostgreSQL và broker cùng phiên bản với tầng dùng chung; tham số sai thì từ chối', () => {
+  const compose = fs.readFileSync(path.join(__dirname, '..', '..', 'local', 'docker-compose.yml'), 'utf8');
+  for (const image of Object.values(smoke.IMAGES)) assert.ok(compose.includes(`image: ${image}`), `local/docker-compose.yml phải dùng ${image}`);
+  assert.deepEqual(smoke.parseArgs(['--service', 'shop', '--image', 'i:1', '--source', '.']), { seconds: 120, service: 'shop', image: 'i:1', source: '.' });
+  assert.throws(() => smoke.parseArgs(['--service', 'Shop; rm', '--image', 'i', '--source', '.']), /cần --service/);
+  assert.throws(() => smoke.parseArgs(['--bogus', '1']), /tham số không hợp lệ/);
+});
+
+test('workflow dùng chung: đóng gói commit được chỉ định, thiếu secret thì đỏ, chạy thử trước khi đẩy', () => {
+  const wf = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'service-image.yml'), 'utf8');
+  assert.ok(!wf.includes('$GITHUB_SHA'), 'không được đóng gói theo commit đang chạy: phải theo commit do decide.js trả về');
+  assert.match(wf, /ref: \$\{\{ inputs\.commit \}\}/);
+  assert.match(wf, /Thiếu DOCKERHUB_USERNAME hoặc DOCKERHUB_TOKEN[\s\S]{0,200}exit 1/);
+  assert.ok(wf.indexOf('ci/smoke.js') > wf.indexOf('ci/scan-image.js') && wf.indexOf('ci/smoke.js') < wf.indexOf('docker push'), 'chạy thử sau khi quét, trước khi đẩy');
+  const pin = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'service-pin.yml'), 'utf8');
+  assert.match(pin, /BSN_MODE: pin/);
+  assert.match(pin, /fetch-depth: 0/);
 });

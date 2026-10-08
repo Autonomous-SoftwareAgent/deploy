@@ -26,7 +26,7 @@ Design -> Spec -> Impl -> Code. Sinh tự động từ `docs/modules/*`.
 
 | Design | Spec | Tiêu đề | D | S | I | Code | Vấn đề |
 |---|---|---|---|---|---|---|---|
-| GOI-D-001 | GOI-S-001 | Khai báo trước, build sau: chỉ đóng gói commit đã khai | accepted | ready | done | ci/decide.js<br>.github/workflows/service-image.yml | - |
+| GOI-D-001 | GOI-S-001 | Khai báo trước, build sau: khai commit nào thì test, đóng gói và chạy thử đúng commit đó | accepted | ready | done | ci/decide.js<br>ci/smoke.js<br>.github/workflows/service-pin.yml<br>.github/workflows/service-image.yml | - |
 
 ## khai-bao
 

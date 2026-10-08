@@ -68,7 +68,8 @@ Thêm một dịch vụ nhỏ chỉ bằng: tạo repo `svc-<tên>` với `bsn.c
 
 ## Việc lẻ đã biết, chưa xếp chặng
 
-- Build lại một commit cũ mà bản đã bị dọn, và build một commit không nằm ở đầu nhánh: workflow hiện chỉ đóng gói commit ở đầu nhánh `main` của lần chạy.
+- Build lại một commit cũ mà bản đã bị dọn, và build một commit không nằm ở đầu nhánh: workflow `service-pin` và `service-image` đã đóng gói theo commit đã khai (2026-10-08); còn phải chạy thật trên GitHub với một commit nằm dưới đầu nhánh.
+- Việc nhỏ của CI còn lại: dịch vụ gọi workflow dùng chung theo nhánh `main` (xem mục nhãn phiên bản ở trên); nền chưa kiểm được dịch vụ có khai `needs` trước job `image`; workflow `pins` còn theo dõi tệp `lib.js` đã xóa và chưa theo dõi `src/`; sau khi gộp lịch sử, bộ dọn bản không còn biết bản ghim liền trước; hai lần chạy cùng lúc cho một commit có thể cùng đẩy một nhãn; ảnh nền của dịch vụ nên ghim mã băm và phiên bản PostgreSQL trong test của dịch vụ nên khớp tầng dùng chung (việc của từng dịch vụ).
 - Đóng gói cho nhánh khác `main` (`bsn.ci.json` đã có trường `buildBranches`, hiện chỉ nhận `main`).
 - Ký bản đóng gói và quét lỗ hổng.
 - Luật bảo vệ nhánh `main`; khi có thêm người: `CODEOWNERS` gán `services/<dịch-vụ>.json` cho nhóm của dịch vụ đó.

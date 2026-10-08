@@ -1,0 +1,81 @@
+# Workflow DÙNG CHUNG, chạy TRƯỚC job test của dịch vụ (S-029): cho biết lần chạy này có commit nào chờ đóng gói không.
+# KHAI COMMIT NÀO THÌ ĐÓNG GÓI ĐÚNG COMMIT ĐÓ: commit ghi trong tờ services/<dịch-vụ>.json của repo này, dù là đầu nhánh
+# hay nằm phía dưới, miễn nó đã có trên nhánh main vừa đẩy và chưa có bản.
+# Dịch vụ gọi nó, cho job test chạy trên từng commit trong `refs`, rồi đưa `commit` cho workflow service-image:
+#   pin:
+#     uses: Autonomous-SoftwareAgent/deploy/.github/workflows/service-pin.yml@main
+#   test:
+#     needs: pin
+#     strategy:
+#       matrix:
+#         ref: ${{ fromJSON(needs.pin.outputs.refs) }}
+#     steps:
+#       - uses: actions/checkout@<mã commit>
+#         with:
+#           ref: ${{ matrix.ref }}
+#   image:
+#     needs: [pin, test]
+#     uses: Autonomous-SoftwareAgent/deploy/.github/workflows/service-image.yml@main
+#     with:
+#       commit: ${{ needs.pin.outputs.commit }}
+#     secrets: inherit
+# `refs` luôn có commit đang chạy; có thêm commit đã khai khi nó sắp được đóng gói và nằm dưới đầu nhánh.
+name: service-pin
+on:
+  workflow_call:
+    inputs:
+      deploy-repo:
+        description: Repo deploy chứa các tệp phụ của CI (ci/) và các tờ khai báo
+        type: string
+        default: Autonomous-SoftwareAgent/deploy
+      deploy-ref:
+        type: string
+        default: main
+      repo-prefix:
+        description: Tiền tố tên repo của dịch vụ trên GitHub và Docker Hub
+        type: string
+        default: svc-
+    outputs:
+      commit:
+        description: Commit được xét để đóng gói (commit đã khai; chưa khai thì là commit đang chạy)
+        value: ${{ jobs.pin.outputs.commit }}
+      build:
+        description: "'true' khi commit đó sẽ được đóng gói ở lần chạy này"
+        value: ${{ jobs.pin.outputs.build }}
+      refs:
+        description: Mảng JSON các commit mà job test của dịch vụ phải chạy
+        value: ${{ jobs.pin.outputs.refs }}
+permissions:
+  contents: read
+jobs:
+  pin:
+    runs-on: ubuntu-24.04
+    outputs:
+      commit: ${{ steps.decide.outputs.commit }}
+      build: ${{ steps.decide.outputs.build }}
+      refs: ${{ steps.decide.outputs.refs }}
+    steps:
+      - name: Lấy mã của dịch vụ kèm đủ lịch sử (để biết commit đã khai có trên nhánh không)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Lấy tệp phụ của CI và các tờ khai báo từ repo deploy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.deploy-repo }}
+          ref: ${{ inputs.deploy-ref }}
+          path: .deploy
+          sparse-checkout: |
+            ci
+            services
+      - name: Đưa tệp của repo deploy ra ngoài thư mục của dịch vụ
+        run: mv .deploy "$RUNNER_TEMP/deploy"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Commit nào chờ đóng gói
+        id: decide
+        env:
+          BSN_MODE: pin
+          BSN_REPO_PREFIX: ${{ inputs.repo-prefix }}
+        run: BSN_DEPLOY_DIR="$RUNNER_TEMP/deploy" node "$RUNNER_TEMP/deploy/ci/decide.js"

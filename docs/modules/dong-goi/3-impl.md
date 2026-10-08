@@ -6,9 +6,9 @@ module: dong-goi
 Đã code gì, ở đâu, lệch spec chỗ nào. Ghi qua tool `impl_link`.
 
 ## GOI-S-001: Khai báo trước, build sau: chỉ đóng gói commit đã khai
-- spec_hash: 3d5bfec5
+- spec_hash: 67837213
 - status: done
-- code: ci/decide.js, .github/workflows/service-image.yml
+- code: ci/decide.js, ci/smoke.js, .github/workflows/service-pin.yml, .github/workflows/service-image.yml
 - tests: ci/test/ci.test.js
 - deviation:
-- notes: ci/decide.js: decide (dòng 23), readDeclaration (48). Bước build, dùng lại lớp, quét và đẩy nằm trong service-image.yml và chỉ kiểm được bằng lần chạy thật trên GitHub (đã chạy ngày 2026-10-07 với hai dịch vụ); không có test tự động cho phần workflow.
+- notes: ci/decide.js: decide (hàm thuần), readDeclaration, readRegistry, isAncestor, imageOnRegistry, main. ci/smoke.js: plan (hàm thuần), run, parseArgs. Phần workflow chỉ kiểm được bằng lần chạy thật trên GitHub: bản mới (service-pin, đóng gói theo commit đã khai, chạy thử trước khi đẩy) CHƯA chạy lần nào; ci/smoke.js đã chạy thật ở máy làm việc với bản của hai dịch vụ ngày 2026-10-08.

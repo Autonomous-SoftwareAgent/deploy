@@ -3,7 +3,7 @@
 
 Nền dùng chung đưa một commit của bất kỳ dịch vụ nào thành bản đóng gói và chạy nó: dịch vụ khai commit muốn chạy, GitHub đóng gói sau khi test qua, rồi người hoặc agent đưa bản lên bằng dòng lệnh hoặc bảng điều khiển web của repo này. Bản không khỏe thì bản trước tự chạy lại. Đích là máy đang chạy lệnh; mô hình hai máy trên GCP chưa làm.
 
-Cập nhật: 2026-10-07. Bản cho người đọc: BSN_/docs/portal/infra/index.html (sinh từ cùng nguồn).
+Cập nhật: 2026-10-08. Bản cho người đọc: BSN_/docs/portal/infra/index.html (sinh từ cùng nguồn).
 
 ## Nghiệp vụ
 
@@ -192,10 +192,10 @@ Vấn đề chưa xong (5):
   Vấn đề: Lệnh deploy và rollback đã chạy đúng trên hệ local và trên một máy thử GCP (lệnh chạy ngay trên máy đó), và bảng điều khiển web đã có. Nhưng chưa có máy nào chạy thường trực: máy thử đang tắt; máy chủ vẫn phải có repo của dịch vụ để lấy tệp cấu hình và build đồ giả lập; cấu hình và mật khẩu là loại dùng cho local; bảng điều khiển chỉ nghe trên 127.0.0.1 của máy nó chạy và chưa được đóng gói. Hệ quả: chưa dịch vụ nào nhận được yêu cầu thật của khách hay của cổng thanh toán.
   Tinh chỉnh: 2026-10-07: (1) lệnh deploy và rollback, thử thật ở local. (2) Máy thử GCP e2-small: server/setup.sh dựng máy mới tinh, cả hệ khỏe sau 2 phút 9 giây, deploy, bản hỏng tự lùi và rollback đều chạy; lộ ra rằng chờ khỏe 25 giây là quá ngắn cho máy nhỏ. (3) Người dùng đổi hướng: bỏ nút bấm trên GitHub, deploy từ bảng điều khiển web của repo này; mã chuyển sang bốn lớp (D-007). Còn lại: đóng gói bảng điều khiển, hai máy trên GCP, cấu hình và bí mật thật, bước người duyệt.
   Tham chiếu: S-017, S-023, D-007, DEP-S-001, BDK-S-001, src/application/switch-version.js:22, ROADMAP.md
-- P-002 [open, medium] Không build lại được commit cũ đã bị dọn bản, hay commit không nằm ở đầu nhánh (phát hiện 2026-10-07)
+- P-002 [refining, medium] Không build lại được commit cũ đã bị dọn bản, hay commit không nằm ở đầu nhánh (phát hiện 2026-10-07)
   Vấn đề: Workflow dùng chung chỉ đóng gói commit ở đầu nhánh main của lần chạy. Nếu một dịch vụ muốn lùi về một commit cũ mà bản của nó đã bị workflow prune xóa, hoặc khai một commit nằm giữa lịch sử, thì không lần chạy nào đóng gói nó. Hệ quả: lúc sự cố có thể không lùi được về bản mong muốn. Giảm nhẹ hiện có: bản đang ghim và bản ghim liền trước không bao giờ bị dọn.
-  Tinh chỉnh: Chưa xử lý. Hướng: cho workflow của dịch vụ nhận một mã commit khi chạy tay và checkout đúng commit đó cho cả job test lẫn job image.
-  Tham chiếu: S-029, ci/decide.js:40, ci/prune-images.js:17
+  Tinh chỉnh: 2026-10-08 (D-010): workflow service-pin và service-image đóng gói đúng commit ghi trong tờ khai báo, dù nó nằm dưới đầu nhánh, miễn commit đó đã có trên nhánh main và chưa có bản; job test chạy trên cả đầu nhánh lẫn commit đó. Lùi về commit cũ mà bản đã bị dọn vì vậy đóng gói lại được. Mới có test ở máy (ci/test/ci.test.js); CHƯA chạy trên GitHub, nên chưa đóng vấn đề.
+  Tham chiếu: S-029, D-010, GOI-S-001, ci/decide.js, .github/workflows/service-pin.yml
 - P-003 [open, medium] Bộ quét bí mật chỉ bắt các dạng thường gặp (phát hiện 2026-10-07)
   Vấn đề: Kho Docker Hub công khai, nên bí mật lọt vào một bản là lộ hẳn, kể cả sau khi xóa bản. ci/scan-image.js chỉ tìm token có khuôn rõ (Docker Hub, GitHub, AWS, Google, Slack, khóa PEM), tệp .env, tệp khóa, thư mục .git và biến ENV/ARG tên như bí mật; nó bỏ qua thư mục thư viện và thư mục hệ thống của ảnh nền. Bí mật dạng khác (mật khẩu thường trong tệp cấu hình, token của nhà cung cấp lạ) không bị bắt. Chưa có quét lỗ hổng và chưa ký bản.
   Tinh chỉnh: Đã chạy bộ quét trên các bản thật của hai dịch vụ, không thấy gì trong các dạng được kiểm. Lớp chặn chính vẫn là .dockerignore và Dockerfile của từng dịch vụ.

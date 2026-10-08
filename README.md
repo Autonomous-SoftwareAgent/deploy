@@ -14,8 +14,8 @@ Các quyết định S-017, S-018, S-019, S-020, S-023, S-026, S-028, S-029 đư
   src/infrastructure/      bộ nối cho từng cổng: docker, git, tệp, khóa, HTTP; memory/ là bộ nối trong bộ nhớ
   src/interfaces/          cli/ (dòng lệnh), http/ (máy chủ web của bảng điều khiển), web/ (giao diện)
   src/composition.js       nơi duy nhất lắp bộ nối vào ca sử dụng
-  ci/                      tệp phụ của workflow: decide.js (có đóng gói không), scan-image.js (quét bí mật), prune-images.js (dọn bản cũ)
-  .github/workflows/       ci, service-image (workflow dùng chung cho mọi dịch vụ), pins, prune
+  ci/                      tệp phụ của workflow: decide.js (commit nào được đóng gói), scan-image.js (quét bí mật), smoke.js (chạy thử bản), prune-images.js (dọn bản cũ)
+  .github/workflows/       ci, service-pin và service-image (hai workflow dùng chung cho mọi dịch vụ), pins, prune
   test/  ci/test/          test (không cần Docker, không cần mạng)
   local/docker-compose.yml tầng dùng chung ở local: PostgreSQL, broker, mạng chung
   local/.run/              tệp sinh khi chạy (mật khẩu local, compose của dịch vụ); không commit
@@ -32,7 +32,7 @@ Lệnh trong tệp này viết theo cách gọi trên máy làm việc, từ `BS
 - **Ảnh chỉ được build từ commit được ghim** trong tờ khai báo. Lệnh trích đúng commit đó ra thư mục tạm rồi build; không đọc thư mục làm việc. Phiên đang sửa dở một dịch vụ không phải dừng, và phần chưa commit không lọt vào ảnh.
 - **Dịch vụ tự khai commit mình muốn chạy.** Phiên của dịch vụ chạy `pin` rồi commit tờ khai báo của mình ở repo deploy (`git -C infra add services/<dịch-vụ>.json`, commit, và `git -C infra push` khi người dùng bảo); không ghi tờ của dịch vụ khác, không sửa phần còn lại của repo deploy.
 - **Nhãn ảnh là mã commit.** Ở máy: `bsn-<dịch-vụ>:<12 ký tự>`. Trên Docker Hub: `<tài-khoản>/svc-<dịch-vụ>:main-<12 ký tự>`. Không dùng nhãn `latest`.
-- **Khai báo trước, build sau; không có build tự động (S-029), áp cho mọi dịch vụ.** Chỉ commit đang được ghim trong tờ khai báo mới được đóng gói trên GitHub, và chỉ sau khi test của dịch vụ qua. Lần đẩy khác chỉ chạy test. Lệnh `pin` không chạy test thay bạn.
+- **Khai báo trước, build sau; không có build tự động (S-029), áp cho mọi dịch vụ.** Khai commit nào trong tờ khai báo thì GitHub đóng gói đúng commit đó (dù là đầu nhánh hay nằm phía dưới), và chỉ sau khi test của dịch vụ qua trên chính commit đó. Lần chạy không có commit nào chờ đóng gói thì chỉ chạy test. Lệnh `pin` không chạy test thay bạn.
 - **Chỉ deploy commit đã có bản.** Khai báo đi trước bản đóng gói, nên "đã khai, chưa có bản" là trạng thái bình thường (`images` báo "CHỜ BUILD"); `images --strict` dùng khi cần chắc mọi bản đã có.
 - Lệnh làm thay đổi (`pin`, `build`, `up`, `down`) mặc định chỉ in kế hoạch; thêm `--apply` mới chạy thật.
 
@@ -148,28 +148,46 @@ Không sửa mã của nền.
 
 ## CI trên GitHub
 
-Tổ chức `Autonomous-SoftwareAgent`, repo công khai: repo này là `deploy`, dịch vụ là `svc-<dịch-vụ>`; bộ công cụ Claude (harness) ở repo `harness`. Docker Hub: kho công khai `nguyen1410/svc-<dịch-vụ>`.
+Tổ chức `Autonomous-SoftwareAgent`, repo công khai: repo này là `deploy`, dịch vụ là `svc-<dịch-vụ>`. Bộ công cụ Claude (harness) và các quyết định chung chỉ nằm ở máy làm việc, không có repo trên GitHub. Docker Hub: kho công khai `nguyen1410/svc-<dịch-vụ>`.
 
 | Workflow ở repo deploy | Chạy khi | Làm gì |
 |---|---|---|
 | `ci.yml` | push lên `main`, pull request | `bsn.js check`; test của lệnh điều khiển và tệp phụ của CI |
-| `service-image.yml` | dịch vụ gọi, sau job test của nó | commit đang chạy trùng commit đã ghim thì đóng gói (dùng lại lớp từ bản trước), quét bí mật, đẩy Docker Hub; không trùng thì dừng |
+| `service-pin.yml` | dịch vụ gọi, TRƯỚC job test của nó | đọc tờ khai báo: commit nào chờ đóng gói, và job test phải chạy trên những commit nào |
+| `service-image.yml` | dịch vụ gọi, sau job test của nó | đóng gói đúng commit đã khai (dùng lại lớp từ bản trước), quét bí mật, chạy thử bản cạnh PostgreSQL và broker, rồi đẩy Docker Hub; không có commit chờ thì dừng |
 | `pins.yml` | tờ khai báo đổi, hoặc chạy tay | `bsn.js images`: commit được ghim đã có bản chưa; còn bản chờ build thì vẫn xanh kèm cảnh báo; chạy tay với `strict` thì đỏ |
 | `prune.yml` | thứ Hai hằng tuần, hoặc chạy tay | dọn bản cũ: giữ `registry.keep` bản mới nhất, cùng bản đang ghim và bản ghim liền trước |
 
 Trong repo của dịch vụ:
 
 - `bsn.ci.json` ở gốc: `{"service": "<tên>", "dockerTarget": "<tầng Dockerfile, nếu có>"}`. Tên repo phải đúng là `svc-<tên>`, nếu không workflow từ chối.
-- Workflow của dịch vụ có `workflow_dispatch` trong `on:` (để chạy tay), job `test` của riêng nó (ngôn ngữ, cơ sở dữ liệu, broker chạy kèm), rồi:
+- Workflow của dịch vụ có `workflow_dispatch` trong `on:` (để chạy tay) và ba job: `pin` của nền, `test` của riêng nó (ngôn ngữ, cơ sở dữ liệu, broker chạy kèm) chạy trên từng commit mà `pin` nêu, rồi `image` của nền:
 
 ```yaml
+  pin:
+    uses: Autonomous-SoftwareAgent/deploy/.github/workflows/service-pin.yml@main
+  test:
+    needs: pin
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: ${{ fromJSON(needs.pin.outputs.refs) }}
+    steps:
+      - uses: actions/checkout@<mã commit>
+        with:
+          ref: ${{ matrix.ref }}
+      # cài ngôn ngữ, chạy đúng lệnh test của dịch vụ
   image:
-    needs: test
+    needs: [pin, test]
     uses: Autonomous-SoftwareAgent/deploy/.github/workflows/service-image.yml@main
+    with:
+      commit: ${{ needs.pin.outputs.commit }}
     secrets: inherit
 ```
 
-Luật đóng gói (S-029): chỉ nhánh `main` (push hoặc chạy tay), và chỉ khi commit đang chạy đúng là commit đang được ghim trong `services/<dịch-vụ>.json` của repo này ở thời điểm chạy. Không trùng thì job `image` dừng sau bước quyết định, vẫn xanh, và ghi lý do. Commit nào được ghim cũng được đóng gói, kể cả commit chỉ sửa tài liệu. Workflow chỉ đóng gói commit ở đầu nhánh của lần chạy. Một commit chỉ có một bản: chạy lại không ghi đè. Thiếu secret `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` thì workflow cảnh báo và không đẩy.
+Cách gọi cũ (chỉ có `test` và `image`, không truyền `commit`) vẫn chạy, nhưng khi đó chỉ commit ở đầu nhánh được xét.
+
+Luật đóng gói (S-029): chỉ nhánh `main` (push hoặc chạy tay), và commit được đóng gói là commit đang được ghim trong `services/<dịch-vụ>.json` của repo này ở thời điểm chạy, miễn nó đã có trên nhánh `main` vừa đẩy và chưa có bản. Commit đó nằm dưới đầu nhánh thì job `test` chạy trên cả đầu nhánh lẫn chính nó. Không có commit nào chờ thì job `image` dừng sau bước quyết định, vẫn xanh, và ghi lý do. Commit nào được ghim cũng được đóng gói, kể cả commit chỉ sửa tài liệu. Một commit chỉ có một bản: chạy lại không ghi đè. Trước khi đẩy, bản được bật thử theo đúng tờ khai báo (cùng biến môi trường như lúc chạy trong hệ, cạnh PostgreSQL và broker cùng phiên bản với tầng dùng chung; đồ giả lập đi kèm không được bật) và phải trả 2xx ở đường kiểm sức khỏe đã khai; không khỏe thì không đẩy. Có commit chờ đóng gói mà thiếu secret `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` thì lần chạy ĐỎ.
 
 Máy của GitHub không giữ lớp giữa các lần chạy, nên bước build ghi kèm thông tin đệm vào bản và lấy lớp từ bản `main-` gần nhất của chính dịch vụ đó: lớp không đổi giữ nguyên mã băm và không phải tải lên lại.
 
@@ -211,7 +229,7 @@ Bộ quét bí mật (`ci/scan-image.js`) chỉ bắt các dạng token có khu�
 
 - `svc-payment-hub` (lần chạy 37506736416, commit `2d4c9e5ee6b6`) và `svc-ingest` (lần chạy 37506753010, commit `9f8c7e21bc2d`): test xanh, job `image` lấy workflow từ `Autonomous-SoftwareAgent/deploy`, quét bí mật sạch, có bản trên Docker Hub.
 - Đo trên Docker Hub, bản thứ hai so với bản đầu (lúc CHƯA có bước dùng lại lớp): `payment-hub` tốn thêm 0,38 MB; `ingest` tốn thêm 21,4 MB, vì lớp cài thư viện 21,3 MB dựng lại lệch vài trăm byte nên bị coi là lớp mới.
-- Repo `Autonomous-SoftwareAgent/platform` đã xóa sau khi không còn workflow nào gọi nó; bộ công cụ Claude ở repo `Autonomous-SoftwareAgent/harness`.
+- Repo `platform` đã xóa sau khi không còn workflow nào gọi nó.
 
 Đã kiểm ngày 2026-10-07, luật khai báo trước, build sau và bước dùng lại lớp (S-029):
 
@@ -271,7 +289,7 @@ Chưa làm, chưa kiểm (thứ tự và thước đo xong ở [ROADMAP.md](ROAD
 
 - Workflow `prune` (dọn bản cũ) chưa chạy lần nào. Chế độ `strict` của workflow `pins` mới kiểm bằng test ở máy.
 - Bước dùng lại lớp mới đo với `ingest` trong trường hợp mã của ảnh không đổi; chưa đo trường hợp sửa mã thật (kỳ vọng: chỉ lớp mã tải lên, lớp thư viện dùng lại).
-- Khai một commit không nằm ở đầu nhánh `main`, hoặc lùi về commit cũ mà bản đã bị dọn: chưa có cách build lại bằng workflow.
+- Khai một commit nằm dưới đầu nhánh `main`, và lùi về commit cũ mà bản đã bị dọn: workflow đã được viết để đóng gói đúng commit đã khai, mới có test ở máy; CHƯA chạy trên GitHub.
 - Chưa có VM, tên miền. `cloud.route` của mọi dịch vụ đang để trống.
 - Cửa vào trên cloud (TLS, chia đường).
 - Tầng dùng chung ở local dùng một tài khoản PostgreSQL cho mọi dịch vụ; production phải tách tài khoản.

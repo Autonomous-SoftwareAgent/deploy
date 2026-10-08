@@ -41,7 +41,8 @@ infra/
 | `interfaces/http` | `domain`, `application`, `interfaces/http`, `node:http`, `node:fs`, `node:path` | `infrastructure` |
 | `interfaces/web` | chỉ `interfaces/web` | mọi thứ khác (nó chạy trong trình duyệt) |
 | `composition.js` | tất cả | (chỉ `bsn.js` và test nhập nó) |
-| `ci/decide.js`, `ci/scan-image.js` | chỉ trong `ci/` | `src/` (workflow dùng chung chỉ lấy `ci/` và `services/` về máy của GitHub) |
+| `ci/decide.js`, `ci/scan-image.js` | chỉ trong `ci/` | `src/` (đứng một mình) |
+| `ci/smoke.js` | `src/domain` | `src/infrastructure`, `src/application` (workflow dùng chung chỉ lấy `ci/`, `services/` và `src/domain` về máy của GitHub) |
 | `ci/prune-images.js` | `src/domain`, `src/infrastructure` | (chạy trong repo đầy đủ ở workflow `prune`) |
 
 `test/architecture.test.js` quét mọi lệnh `require` và `import` và đỏ khi: có một dòng trái bảng trên; một tệp trong `src/` dài quá 250 dòng; một tệp ngoài `infrastructure` và `composition.js` nhập `node:child_process`; các lệnh của dòng lệnh không cùng một hình dạng.
