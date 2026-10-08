@@ -1,4 +1,5 @@
 'use strict';
+// spec: BDK-S-004
 // Các đường /api/v1 của phần AN TOÀN và CẤU HÌNH: người gọi là ai, cấu hình và lịch sử phiên bản, ánh xạ nhánh, người dùng,
 // yêu cầu chờ duyệt, sổ thao tác. Bộ điều khiển chỉ đổi yêu cầu thành lời gọi ca sử dụng; quyền và luật nằm ở domain/access.
 const { json } = require('../respond');

@@ -1,4 +1,5 @@
 'use strict';
+// spec: BDK-S-004
 // Ca sử dụng XEM LOG: mấy dòng cuối mà một dịch vụ đang chạy in ra (log của container), cho người vận hành nhìn nhanh trên
 // bảng điều khiển. Chỉ đọc. Đây không phải hệ thu log: dòng cũ hơn giới hạn của Docker, hay của bản đã bị thay, thì không có.
 const MAX_TAIL = 500;

@@ -1,4 +1,5 @@
 'use strict';
+// spec: BDK-S-004
 // Luật AN TOÀN của bảng điều khiển: ai được deploy hay rollback ở môi trường nào, môi trường nào đòi gõ tên xác nhận,
 // đòi người thứ hai duyệt, hay đang trong khung giờ khóa. Thuần: cấu hình, người gọi và giờ hiện tại đều được đưa vào.
 // Môi trường và vai trò là dữ liệu của cấu hình; tệp này không biết tên môi trường nào.

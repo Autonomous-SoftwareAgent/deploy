@@ -1,3 +1,4 @@
+// spec: BDK-S-004
 // Trạng thái và thao tác của phần cấu hình, phân quyền, duyệt và sổ thao tác. Bản NHÁP nằm ở trình duyệt; chỉ khi bấm lưu
 // máy chủ mới kiểm và ghi thành một phiên bản mới. Màn hình chỉ đọc state.cfg và gọi các hàm ở đây.
 import { api, errorOf } from './api.js';

@@ -1,4 +1,5 @@
 'use strict';
+// spec: BDK-S-004
 // Hai cổng lưu của bảng điều khiển, trên đĩa trong thư mục trạng thái (không commit):
 //   ConfigStore: console.config.json (cấu hình kèm lịch sử phiên bản), ghi qua tệp tạm rồi đổi tên để không bao giờ để lại tệp dở.
 //   AuditLog:    console.audit.jsonl (mỗi dòng một thao tác), chỉ thêm vào cuối.

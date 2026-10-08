@@ -1,3 +1,4 @@
+// spec: BDK-S-004
 // Mọi chữ hiện trên giao diện nằm ở tệp này (người dùng chốt 2026-10-08: giao diện dùng tiếng Anh toàn bộ).
 // Màn hình không tự viết chữ: muốn đổi lời hay thêm ngôn ngữ thì chỉ sửa ở đây.
 

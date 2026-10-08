@@ -119,15 +119,23 @@ Mọi hàm trả Promise (trừ `ConfigFiles.hostPath`, `Clock`, `Random`, `Hash
 
 ### Máy chủ web (`http/`)
 
-- `server.js`: bảng định tuyến và chuỗi lớp chặn; chỉ nghe trên `127.0.0.1`. `router.js`: bảng `phương thức + đường dẫn -> bộ điều khiển`. `pipeline.js`: ghép các lớp chặn. `respond.js`: dạng của một câu trả lời. `session-cookie.js`: cách đặt và đọc cookie phiên.
-- `middleware/`, theo đúng thứ tự chạy: `security-headers` (gắn vào mọi câu trả lời), `host-guard` (chỉ nhận đúng tên máy của chính nó), tìm đường, `authenticate` (phiên hoặc token), `csrf` (yêu cầu ghi từ trình duyệt phải có header riêng), `json-body` (giới hạn kích thước).
-- `controllers/`: `session.js` (đăng nhập, đăng xuất), `deployments.js` (trạng thái, Deploy, Rollback, xem một việc; đổi kết quả có tên thành mã HTTP), `static.js` (phục vụ `web/`, không ra khỏi thư mục đó).
+- `server.js`: bảng định tuyến và chuỗi lớp chặn; chỉ nghe trên `127.0.0.1`. `router.js`: bảng `phương thức + đường dẫn -> bộ điều khiển`. `pipeline.js`: ghép các lớp chặn. `respond.js`: dạng của một câu trả lời.
+- `middleware/`, theo đúng thứ tự chạy: `security-headers` (gắn vào mọi câu trả lời), `host-guard` (chỉ nhận đúng tên máy của chính nó), tìm đường, `authenticate` (token của agent, hoặc tên và mật khẩu kiểu HTTP Basic; chưa có thì trả 401 kèm lời hỏi của trình duyệt), `csrf` (lệnh ghi của người phải có header riêng và đúng nguồn gốc), `json-body`.
+- `controllers/`: `fleet.js` (tổng quan, chi tiết dịch vụ, log, kiểm tra trước, gửi yêu cầu, lần chạy), `admin.js` (cấu hình, ánh xạ nhánh, người dùng, duyệt, sổ thao tác), `deployments.js` (các đường `/api` cũ một đích, đi qua cùng cổng an toàn), `static.js` (phục vụ `web/`, không ra khỏi thư mục đó). Bộ điều khiển không chứa luật: quyền nằm ở `domain/access.js`.
+
+### Phần an toàn và cấu hình của bảng điều khiển
+
+- `domain/access.js`: vai trò, mức quyền, cổng an toàn của một yêu cầu (`gate`: quyền, giới hạn theo tên, giờ khóa, chuỗi phải gõ, có cần duyệt không), kiểm một bản cấu hình. `domain/branches.js`: ánh xạ nhánh (chỉ là khai báo, không tự deploy).
+- `application/settings.js` (cấu hình có phiên bản), `application/approvals.js` (mọi yêu cầu đi qua đây: chạy ngay, chờ duyệt, hay bị từ chối, đều ghi sổ), `application/audit.js` (sổ thao tác), `application/auth.js` (admin, người dùng có vai trò, token của agent), `application/get-logs.js` (log của container).
+- Cổng mới: `ConfigStore`, `AuditLog` (bộ nối trên đĩa ở `infrastructure/fs-console-records.js`, bộ nối trong bộ nhớ ở `memory/storage.js`); `Runtime.logs`.
+- Luồng một yêu cầu: `controllers/fleet.js` -> `approvals.submit` -> `runs.start` -> `fleet.preflight` (kèm `access.gate`) -> bộ chạy việc của môi trường.
 
 ### Giao diện (`web/`)
 
 - `index.html`, `styles.css`: không có JavaScript hay CSS viết trong HTML, nên chính sách nội dung của trang không có `unsafe-inline`.
-- `api.js` (mọi lời gọi tới máy chủ), `store.js` (trạng thái trang, hỏi lại định kỳ), `format.js` (cách hiển thị giá trị, hàm dựng phần tử).
-- `views/`: `login.js`, `service-state.js` (đọc trạng thái thành nhãn, nút nào bấm được, lời nhắc: thuần, không đụng DOM), `service-card.js`, `history.js`, `job-list.js`, `confirm.js`. Mỗi tệp là hàm từ dữ liệu ra phần tử; chữ chỉ đi qua `textContent`.
+- `text.js`, `text-config.js`: MỌI chữ hiện trên trang (tiếng Anh). Màn hình không tự viết chữ; test `web-text.test.js` giữ điều đó.
+- `dom.js` (dựng phần tử, chữ chỉ qua `textContent`), `api.js` (mọi lời gọi tới máy chủ), `store.js` (trạng thái và thao tác của Tổng quan, dịch vụ, hộp thoại, lần chạy), `config-store.js` (bản nháp cấu hình, người dùng, duyệt).
+- `views/`: `shell` (thanh bên), `overview`, `service`, `dialog`, `run`, `approvals`, `config` cùng `config-environments`, `config-branches`, `config-access`, `config-history`. Mỗi tệp là hàm từ dữ liệu ra phần tử.
 - `main.js`: nối `store` với `views`; chỉ vẽ lại phần có dữ liệu đổi.
 
 ## 7. Một lần bấm Deploy đi qua các lớp

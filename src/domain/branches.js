@@ -1,4 +1,5 @@
 'use strict';
+// spec: BDK-S-004
 // Luật ÁNH XẠ NHÁNH của bảng điều khiển: nhánh nào ứng với môi trường nào, cho từng dịch vụ. Thuần.
 // Ánh xạ chỉ là KHAI BÁO Ý ĐỊNH: nền không tự deploy khi có push (S-029: khai báo commit trước, build sau), nên chế độ "auto"
 // và "pattern" ở đây không tự chạy gì; chúng cho biết nhánh nào được coi là nguồn của môi trường.

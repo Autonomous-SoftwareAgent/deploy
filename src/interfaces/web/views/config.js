@@ -1,3 +1,4 @@
+// spec: BDK-S-004
 // Khung của phần Cấu hình: tiêu đề, thanh lưu bản nháp (xem trước thay đổi rồi mới lưu), và màn con theo mục đang chọn.
 import { h } from '../dom.js';
 import { C } from '../text-config.js';

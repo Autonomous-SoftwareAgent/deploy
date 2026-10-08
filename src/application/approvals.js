@@ -1,4 +1,5 @@
 'use strict';
+// spec: BDK-S-004
 // Ca sử dụng GỬI YÊU CẦU deploy hay rollback từ bảng điều khiển, kèm bước NGƯỜI THỨ HAI DUYỆT cho môi trường đòi duyệt.
 // Mọi yêu cầu đi qua đây: được chạy ngay, bị chặn, hay phải chờ duyệt đều ghi vào sổ thao tác.
 // Yêu cầu chờ duyệt sống trong bộ nhớ của bảng điều khiển (mất khi nó khởi động lại) và hết hạn sau 24 giờ.

@@ -1,3 +1,4 @@
+// spec: BDK-S-004
 // Chữ của phần cấu hình, phân quyền, duyệt và sổ thao tác (giao diện tiếng Anh; xem text.js).
 import { plural } from './text.js';
 

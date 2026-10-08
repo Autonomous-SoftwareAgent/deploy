@@ -70,39 +70,46 @@ node infra/bsn.js console --target=<tên> bảng điều khiển ở máy này, 
 
 ## Bảng điều khiển web
 
-`node infra/bsn.js console` mở http://127.0.0.1:8900. Đây là cửa cho người vận hành; agent dùng cùng các đường gọi dưới dạng JSON.
+`node infra/bsn.js console` mở http://127.0.0.1:8900. Đây là cửa cho người vận hành; agent dùng cùng các đường gọi dưới dạng JSON. Giao diện dùng tiếng Anh toàn bộ (người dùng chốt 2026-10-08); bản design gốc và yêu cầu API nằm ở `design/`, tiến độ ở `docs/agent/CONSOLE-PLAN.md`.
 
 - **Chỉ nghe trên 127.0.0.1**: máy khác trong mạng không gọi vào được. Trên máy chủ thì vào qua đường hầm SSH (chưa làm).
-- **Đăng nhập**: lần chạy đầu sinh một mật khẩu quản trị (cho trình duyệt) và một token (cho agent), ghi bản rõ vào `local/.run/console.first-login.txt`. Đọc xong thì xóa tệp đó; bảng điều khiển chỉ giữ dạng băm. Quên thì `node infra/bsn.js console --reset-auth`.
-- **Trang**: mỗi dịch vụ một thẻ (commit đã khai, bản đang chạy, đã có bản đóng gói chưa, lịch sử từ sổ deploy), nút **Deploy** và nút **Rollback** kèm ô chọn bản đã từng chạy khỏe; mỗi nút hỏi lại trước khi chạy. Nút Deploy chỉ bấm được khi commit đã khai khác bản đang chạy và đã có bản trên kho.
-- **Bảng điều khiển không có luật riêng.** Mỗi lần bấm thành một việc chạy trong một tiến trình riêng với đúng lệnh `deploy` hay `rollback` ở trên. Vì vậy bảng điều khiển tắt hay khởi động lại không dừng dịch vụ nào và không cắt ngang lần đưa lên đang chạy.
-- **Agent**: gửi header `Authorization: Bearer <token>`.
+- **Đăng nhập (D-011)**: trình duyệt tự hiện hộp thoại hỏi tên và mật khẩu (HTTP Basic); không có trang đăng nhập, không có cookie. Lần chạy đầu sinh mật khẩu của `admin` và một token cho agent, ghi bản rõ vào `local/.run/console.first-login.txt`. Đọc xong thì xóa tệp đó; bảng điều khiển chỉ giữ dạng băm. Quên thì `node infra/bsn.js console --reset-auth`. Chỉ `/healthz` mở; trang và tệp giao diện cũng phải đăng nhập. Sai 5 lần thì khóa tạm một phút (429). Muốn đăng xuất thì đóng trình duyệt.
+- **Môi trường** là một máy chạy hệ: máy này (`local`) và mỗi tệp `targets/<tên>.json`. Trang Tổng quan có mỗi môi trường một cột.
+- **Người dùng và vai trò (D-012)**: `admin` tạo người dùng (Developer, QA, Tech lead, DevOps); mật khẩu sinh ngẫu nhiên, hiện đúng một lần. Agent dùng token có vai trò `Agent`. Bảng phân quyền đặt cho từng vai trò ở từng môi trường: chỉ xem, deploy, hoặc deploy và rollback.
+- **Bảo vệ môi trường**: đòi người thứ hai duyệt, đòi gõ tên để xác nhận, chỉ nhận người có tên trong danh sách, khung giờ khóa hằng tuần. Máy chủ kiểm mọi điều này ở cả bước kiểm tra trước lẫn lúc chạy; trang chỉ hiện lại.
+- **Cấu hình có phiên bản**: mỗi lần lưu là một phiên bản (ai, lúc nào, ghi chú); lưu lệch phiên bản thì bị từ chối; khôi phục được bản cũ. Nằm ở `local/.run/console.config.json`, không chứa bí mật.
+- **Sổ thao tác**: ai làm gì, lúc nào, được hay bị từ chối; chỉ thêm. Nằm ở `local/.run/console.audit.jsonl`.
+- **Ánh xạ nhánh chỉ là khai báo**: nền không tự deploy khi có push (S-029); không có công tắc tự chạy.
+- **Bảng điều khiển không có luật deploy riêng.** Mỗi mục của một lần chạy là một việc chạy trong một tiến trình riêng với đúng lệnh `deploy` hay `rollback` ở trên. Vì vậy bảng điều khiển tắt hay khởi động lại không dừng dịch vụ nào và không cắt ngang lần đưa lên đang chạy.
+- **Agent**: gửi header `Authorization: Bearer <token>`. Lệnh ghi của người (đăng nhập kiểu Basic) phải kèm header `x-bsn-console: 1`.
+
+Đường gọi cho bảng điều khiển theo môi trường. Lỗi trả `{error: {code, message, details}}`.
+
+| Đường gọi | Việc |
+|---|---|
+| `GET /api/v1/overview` | Mọi dịch vụ ở mọi môi trường; lọc bằng `projectId`, `environmentId`, `status`, `q` |
+| `GET /api/v1/environments` | Danh sách môi trường theo thứ tự, màu và mức bảo vệ đã đặt |
+| `GET /api/v1/services/<tên>` | Chi tiết một dịch vụ: từng môi trường, commit (đã có bản chưa), dòng thời gian deploy, biến môi trường (bí mật chỉ có tên) |
+| `GET /api/v1/services/<tên>/logs?environmentId=&tail=` | Mấy dòng log cuối của container ở một môi trường (tối đa 500) |
+| `POST /api/v1/deployments/preflight` | Kiểm tra trước: từ bản nào sang bản nào, mục bị chặn, cổng an toàn (`gate`); không ghi gì |
+| `POST /api/v1/deployments` | `{kind, environmentId, items: [{serviceId, targetSha?}], confirmation?}`. `201` chạy ngay, `202` chờ người thứ hai duyệt, `422` bị chặn, `409` đang chạy dở |
+| `GET /api/v1/runs`, `/runs/<mã>`, `/runs/<mã>/logs?after=` | Lần chạy, từng bước của từng mục, log đến dần |
+| `GET /api/v1/approvals`, `POST /api/v1/approvals/<mã>/approve\|reject` | Yêu cầu chờ duyệt; người gửi không tự duyệt được |
+| `GET /api/v1/config`, `PUT /api/v1/config`, `POST /api/v1/config/preview\|restore\|reset` | Cấu hình và lịch sử phiên bản (ghi: Admin, DevOps) |
+| `GET /api/v1/branches/matrix`, `POST /api/v1/branches/test` | Ánh xạ nhánh của từng dịch vụ; thử một tên nhánh |
+| `GET\|POST /api/v1/users`, `PATCH\|DELETE /api/v1/users/<tên>`, `POST /api/v1/users/<tên>/password` | Người dùng (Admin, DevOps) |
+| `GET /api/v1/audit`, `GET /api/v1/me` | Sổ thao tác; người đang gọi là ai |
+
+Đường gọi cũ, một đích (đích là môi trường đầu tiên của bảng điều khiển); chúng đi qua cùng cổng an toàn, và từ chối môi trường đòi gõ tên hay đòi duyệt:
 
 | Đường gọi | Việc |
 |---|---|
 | `GET /api/state` | Trạng thái mọi dịch vụ và 10 việc gần nhất |
 | `POST /api/services/<tên>/deploy` | Đưa bản đã khai lên; trả `202` kèm mã việc, `409` nếu dịch vụ đang có việc chạy dở |
-| `POST /api/services/<tên>/rollback` thân `{"commit": "<7 đến 40 ký tự>"}` (bỏ trống: bản liền trước) | Lùi về một bản đã từng chạy khỏe |
-| `GET /api/jobs/<mã>` | Kết quả của một việc, kèm nhật ký của lệnh |
+| `POST /api/services/<tên>/rollback` | Lùi về bản liền trước, hoặc về `{"commit": "..."}` đã từng chạy khỏe |
+| `GET /api/jobs/<mã>` | Một việc và kết quả của nó |
 
-- **Điều khiển một máy từ xa**: `node infra/bsn.js console --target=<tên>`. Bảng điều khiển vẫn chạy ở máy này; hệ chạy ở máy khai trong `targets/<tên>.json` (mẫu ở [targets/README.md](targets/README.md)). Máy đích tự chạy lệnh `deploy`, `rollback` tại chỗ, nên sổ deploy, khóa và bí mật nằm ở máy đích; máy đích không mở thêm cổng nào. Việc trên máy đích chạy tách rời khỏi phiên SSH: mạng rớt hay bảng điều khiển tắt giữa chừng thì việc vẫn xong. Trang ghi rõ đang điều khiển đích nào. Máy đích không trả lời thì trang báo "không đọc được trạng thái từ máy đích" kèm lý do.
-  - Điều kiện: máy này đã đăng nhập `gcloud` và đã SSH được vào máy đích một lần (để có khóa `~/.ssh/google_compute_engine`); máy đích đã chạy `server/setup.sh` và `up --pull --apply`.
-  - **Trên Windows**: lệnh `ssh` của hệ điều hành từ chối tệp khóa có quyền truy cập quá rộng ("bad permissions"). Hoặc siết quyền của tệp khóa, hoặc đặt biến `BSN_SSH` trỏ tới ssh đi kèm Git, ví dụ trong PowerShell: `$env:BSN_SSH = 'C:\Program Files\Git\usr\bin\ssh.exe'`.
-  - Rollback ghi lại tờ khai báo ở bản sao TRÊN MÁY ĐÍCH; nó không đổi tờ ở máy này và không tự đẩy lên GitHub.
-- **Phát triển giao diện mà không đụng hệ nào**: `node infra/bsn.js console --memory` chạy cùng các ca sử dụng trên dữ liệu mẫu trong bộ nhớ (một bản tốt chờ deploy, một bản hỏng, một bản chờ build) và in mật khẩu mẫu ra màn hình.
-- Rollback qua bảng điều khiển ghi lại tờ khai báo ở máy; **bạn vẫn phải commit và đẩy repo deploy** để tờ trên GitHub khớp.
-- Phiên đăng nhập và danh sách việc nằm trong bộ nhớ của bảng điều khiển: khởi động lại thì đăng nhập lại và danh sách việc trống. Lịch sử lâu dài là sổ deploy.
-
-Lên bản mới của một dịch vụ, đúng thứ tự:
-
-1. Commit trong repo dịch vụ (ở máy, chưa đẩy) và chạy test của nó.
-2. `node infra/bsn.js pin <dịch-vụ> --apply`, rồi `git -C infra add services/<dịch-vụ>.json`, `git -C infra commit`, `git -C infra push`.
-3. `git push` repo dịch vụ. Test qua thì bản `main-<12 ký tự commit>` được đóng gói.
-4. `node infra/bsn.js images` thấy "CÓ" thì `node infra/bsn.js up --pull --apply` để hệ local chạy đúng bản đó.
-
-Lỡ đẩy mã trước khi ghim: làm bước 2, rồi chạy tay workflow của dịch vụ (`gh workflow run ci.yml -R Autonomous-SoftwareAgent/svc-<dịch-vụ>`). Quay lui: `pin <dịch-vụ> <commit cũ> --apply`, commit và đẩy repo deploy, rồi `up`; bản của commit cũ phải còn trên Docker Hub.
-
-`up --pull` kéo ảnh chính của dịch vụ, đọc mã commit ghi bên trong bản và từ chối nếu khác commit được ghim. Đồ giả lập đi kèm (sidecar) không lên Docker Hub nên vẫn build tại chỗ; tệp cấu hình khai ở `files` luôn lấy từ commit được ghim.
+Thử giao diện mà không đụng hệ nào: `node infra/bsn.js console --memory` (dữ liệu mẫu, hai môi trường mẫu).
 
 ## Cổng ở local
 
@@ -144,6 +151,8 @@ Không sửa mã của nền.
 | `files` | tệp cấu hình lấy TỪ COMMIT ĐƯỢC GHIM rồi gắn vào container |
 | `aliases` | tên phụ trong mạng chung |
 | `sidecars` | đồ giả lập đi kèm, build từ cùng commit; không đẩy lên Docker Hub |
+| `project` | (tùy chọn) nhóm dự án, để bảng điều khiển gom dịch vụ |
+| `kind` | (tùy chọn) loại dịch vụ, ví dụ `api`, `web`, `worker`: chỉ là nhãn trên bảng điều khiển |
 | `cloud.route` | đường vào trên cloud; để `null` cho tới khi có máy chủ |
 
 ## CI trên GitHub
@@ -317,6 +326,9 @@ Từ `BSN_/`: `node --test infra/test/*.test.js infra/ci/test/*.test.js`. Từ g
 | `test/contract.test.js` | Cùng một bộ kiểm cho bộ nối trên đĩa và bộ nối trong bộ nhớ (Declarations, Locks, Ledger, Secrets, ConfigFiles) |
 | `test/bsn.test.js`, `test/deploy.test.js` | Dòng lệnh từ đầu tới cuối với Docker giả ghi lại lời gọi; git và tar chạy thật trên repo tạm |
 | `test/http.test.js` | Bảng điều khiển qua HTTP thật trên cổng ngẫu nhiên, các ca sử dụng thật trên bộ nối trong bộ nhớ |
+| `test/fleet.test.js` | Bảng điều khiển theo môi trường: tổng quan, chi tiết dịch vụ, kiểm tra trước, lần chạy nhiều mục, log và biến môi trường |
+| `test/safety.test.js` | Người dùng và vai trò, quyền theo môi trường, gõ tên xác nhận, duyệt, khung giờ khóa, cấu hình có phiên bản, ánh xạ nhánh, sổ thao tác |
+| `test/web-text.test.js` | Giao diện không còn câu tiếng Việt và màn hình chỉ lấy chữ từ `text.js` |
 | `test/remote.test.js` | Đích từ xa: tờ khai đích, đoạn lệnh gửi sang máy đích, chờ việc qua mạng chập chờn, bộ nối SSH, và một ca đầu-cuối |
 | `test/job-executor.test.js` | Việc chạy trong tiến trình con: tham số, lỗi, và việc sống sót khi tiến trình cha chết |
 | `ci/test/ci.test.js` | Ba tệp phụ của CI |

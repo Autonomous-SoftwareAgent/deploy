@@ -1,4 +1,5 @@
 'use strict';
+// spec: BDK-S-004
 // SỔ THAO TÁC của bảng điều khiển: ai làm gì, lúc nào, kết quả ra sao. Chỉ thêm, không sửa, không xóa.
 // Ghi sổ hỏng không được làm hỏng việc chính (một lần deploy đã chạy thì vẫn là đã chạy): lỗi ghi được nuốt và đếm lại.
 

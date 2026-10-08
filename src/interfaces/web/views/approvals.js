@@ -1,3 +1,4 @@
+// spec: BDK-S-004
 // Màn Approvals: các yêu cầu deploy hay rollback đang chờ người thứ hai duyệt, và các yêu cầu đã xử lý từ lúc bảng điều khiển khởi động.
 // Ai được duyệt do máy chủ quyết; nút ở đây chỉ gửi yêu cầu, máy chủ từ chối thì trang hiện lý do.
 import { h, short, ago } from '../dom.js';

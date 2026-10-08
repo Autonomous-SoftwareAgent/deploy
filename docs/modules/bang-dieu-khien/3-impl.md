@@ -8,10 +8,10 @@ module: bang-dieu-khien
 ## BDK-S-001: Bảng điều khiển web: người và agent deploy, rollback qua cùng các ca sử dụng với dòng lệnh
 - spec_hash: 7214ffaa
 - status: done
-- code: src/application/console.js, src/application/jobs.js, src/application/auth.js, src/interfaces/http/server.js, src/interfaces/http/router.js, src/interfaces/http/pipeline.js, src/interfaces/http/controllers/deployments.js, src/interfaces/http/controllers/session.js, src/interfaces/http/controllers/static.js, src/interfaces/web/main.js, src/interfaces/web/store.js, src/interfaces/web/views/shell.js, src/infrastructure/job-executors.js, src/infrastructure/fs-credentials.js, src/infrastructure/node-hasher.js, src/interfaces/cli/commands/console.js
+- code: src/application/console.js, src/application/jobs.js, src/application/auth.js, src/interfaces/http/server.js, src/interfaces/http/router.js, src/interfaces/http/pipeline.js, src/interfaces/http/middleware/authenticate.js, src/interfaces/http/middleware/csrf.js, src/interfaces/http/controllers/deployments.js, src/interfaces/http/controllers/static.js, src/interfaces/web/main.js, src/interfaces/web/store.js, src/interfaces/web/views/shell.js, src/infrastructure/job-executors.js, src/infrastructure/fs-credentials.js, src/infrastructure/node-hasher.js, src/interfaces/cli/commands/console.js
 - tests: test/http.test.js, test/job-executor.test.js, test/architecture.test.js
 - deviation:
-- notes: Các đường /api cũ (state, deploy, rollback, jobs) và đăng nhập giữ nguyên cho agent. Giao diện từ ngày 2026-10-08 viết lại theo bản design của người dùng và dùng các đường /api/v1 (BDK-D-003): thẻ dịch vụ, danh sách việc và lịch sử của bản cũ không còn; trang không còn gọi /api/state.
+- notes: Từ 2026-10-08 đăng nhập của người là HTTP Basic do trình duyệt hỏi (D-011): không còn cookie phiên, /api/login, /api/logout và bộ điều khiển session; chỉ /healthz mở. Các đường /api cũ (state, deploy, rollback, jobs) giữ cho agent và đi qua cùng cổng an toàn với /api/v1 (BDK-D-004). Giao diện viết lại theo bản design của người dùng và dùng các đường /api/v1 (BDK-D-003).
 
 ## BDK-S-002: Đích từ xa: bảng điều khiển ở máy này ra lệnh cho máy chạy hệ qua SSH
 - spec_hash: 557aa19a
@@ -28,3 +28,11 @@ module: bang-dieu-khien
 - tests: test/fleet.test.js, test/deploy.test.js, test/job-executor.test.js, test/remote.test.js, test/domain.test.js
 - deviation:
 - notes: Đợt A xong trừ A7 (đăng nhập bằng hộp thoại của trình duyệt). Chưa có: so sánh commit theo tệp, SSE (trang hỏi định kỳ), mục Cấu hình. Đợt B, C, D chưa bắt đầu: xem docs/agent/CONSOLE-PLAN.md.
+
+## BDK-S-004: An toàn và cấu hình của bảng điều khiển: vai trò, cổng an toàn do máy chủ kiểm, người thứ hai duyệt, cấu hình có phiên bản, sổ thao tác
+- spec_hash: 90a1b5af
+- status: done
+- code: src/domain/access.js, src/domain/branches.js, src/application/settings.js, src/application/approvals.js, src/application/audit.js, src/application/get-logs.js, src/infrastructure/fs-console-records.js, src/interfaces/http/controllers/admin.js, src/interfaces/web/config-store.js, src/interfaces/web/text.js, src/interfaces/web/text-config.js, src/interfaces/web/views/config.js, src/interfaces/web/views/approvals.js
+- tests: test/safety.test.js, test/http.test.js, test/fleet.test.js, test/web-text.test.js
+- deviation:
+- notes: Đã kiểm 2026-10-08: 130 test qua; trình duyệt chạy ngầm với dữ liệu mẫu đi hết sáu mục cấu hình, tạo người dùng, gõ tên xác nhận, xin duyệt, không lỗi JavaScript. CHƯA kiểm với hệ thật: phân quyền, duyệt, giờ khóa (hệ thật mới thử deploy và rollback bằng token của agent khi chưa đặt mức bảo vệ nào). Có chủ ý không làm theo bản design: tạo và xóa môi trường trên trang, tự deploy khi có push, môi trường tạm theo nhánh, biểu đồ số đo (chưa có nguồn). Yêu cầu chờ duyệt và sổ lần chạy sống trong bộ nhớ.

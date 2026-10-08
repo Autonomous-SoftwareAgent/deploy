@@ -89,3 +89,19 @@ Design được tách thành yêu cầu, contract, tiêu chí nghiệm thu và t
   - Đã chạy thật ngày 2026-10-08: giao diện mở bằng Edge chạy ngầm ở chế độ bộ nhớ, đi hết các màn, không lỗi JavaScript; bảng điều khiển ở máy làm việc đọc đúng trạng thái của hai môi trường thật (máy làm việc và một máy GCP).
   - Chưa kiểm: deploy thật qua /api/v1 trên hệ thật; người dùng tự bấm trên trang; đích từ xa nhận deploy theo commit (máy GCP còn bản lệnh cũ); giao diện chưa có test tự động.
 - tasks:
+
+## BDK-S-004: An toàn và cấu hình của bảng điều khiển: vai trò, cổng an toàn do máy chủ kiểm, người thứ hai duyệt, cấu hình có phiên bản, sổ thao tác
+- from: BDK-D-004
+- derived_from: ad9fd4ee
+- status: ready
+- requirement:
+  1. Chỉ /healthz mở; mọi đường khác đòi token của agent hoặc tên và mật khẩu kiểu HTTP Basic, chưa có thì trả 401 kèm WWW-Authenticate. Sai 5 lần thì khóa tạm một phút (429). Lệnh ghi của người phải có header x-bsn-console và đúng Origin.
+  2. Admin và DevOps tạo, đổi vai trò, sinh lại mật khẩu, xóa người dùng; mật khẩu sinh ngẫu nhiên, chỉ trả một lần, nơi lưu và sổ thao tác không giữ bản rõ.
+  3. Một yêu cầu deploy hay rollback bị chặn khi vai trò không đủ mức ở môi trường, khi môi trường giới hạn theo tên và người gọi không có trong danh sách, hoặc khi đang trong khung giờ khóa. Môi trường đòi gõ tên thì yêu cầu phải kèm đúng tên dịch vụ (nhiều dịch vụ: tên môi trường). Môi trường đòi duyệt thì yêu cầu nằm chờ; người duyệt phải khác người gửi và có mức 2; duyệt xong thì kiểm tra trước chạy lại rồi mới chạy.
+  4. Cấu hình lưu theo phiên bản kèm ai, lúc nào, ghi chú; lưu phải kèm số phiên bản đang sửa; xem trước nêu thay đổi và lỗi; khôi phục và về mặc định cũng là một phiên bản mới.
+  5. Sổ thao tác chỉ thêm: yêu cầu được chạy, chờ duyệt, bị từ chối, duyệt, từ chối duyệt, đổi cấu hình, đổi người dùng.
+  6. Ánh xạ nhánh (mặc định theo nhóm, riêng theo dịch vụ, quy tắc theo mẫu) lưu và thử được, không tự chạy gì.
+  7. Mọi chữ trên giao diện là tiếng Anh và nằm ở text.js, text-config.js.
+- contract: Đường gọi: GET /api/v1/me; GET, PUT /api/v1/config; POST /api/v1/config/preview, restore, reset; GET /api/v1/branches/matrix; POST /api/v1/branches/test; GET, POST /api/v1/users; PATCH, DELETE /api/v1/users/{tên}; POST /api/v1/users/{tên}/password; GET /api/v1/approvals; POST /api/v1/approvals/{mã}/approve, reject; GET /api/v1/audit; GET /api/v1/services/{tên}/logs. POST /api/v1/deployments nhận thêm confirmation, trả 201 (chạy), 202 (chờ duyệt), 422 (BLOCKED, CONFIRMATION_REQUIRED). Kết quả kiểm tra trước có gate: {blockers: [{code, message}], confirmation, approval}; mã chặn: FORBIDDEN, NOT_ALLOWED_USER, FREEZE_WINDOW. Lỗi khác: 403 FORBIDDEN, 409 CONFLICT, 404 NOT_FOUND. Cổng mới: ConfigStore (load, save), AuditLog (append, list), Runtime.logs. Tệp: local/.run/console.config.json, local/.run/console.audit.jsonl.
+- acceptance: test/safety.test.js và test/http.test.js qua: vai trò không đủ mức bị chặn ở kiểm tra trước, ở lúc chạy và ở đường /api cũ; thiếu hay sai tên xác nhận thì 422; trong giờ khóa thì chặn cả admin; yêu cầu ở môi trường đòi duyệt trả 202, người gửi và người mức 1 không duyệt được, duyệt xong mới đổi bản đang chạy, từ chối thì không đổi; lưu cấu hình lệch phiên bản trả 409; nơi lưu và sổ thao tác không chứa mật khẩu; mật khẩu đã qua kiểm không tốn thêm lần băm chậm; sai 5 lần trả 429. test/web-text.test.js qua: giao diện không còn câu tiếng Việt.
+- tasks:

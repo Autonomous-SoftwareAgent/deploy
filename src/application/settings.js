@@ -1,4 +1,5 @@
 'use strict';
+// spec: BDK-S-004
 // Ca sử dụng CẤU HÌNH của bảng điều khiển: màu, thứ tự, mức bảo vệ của từng môi trường, bảng phân quyền theo vai trò, ánh xạ nhánh.
 // Mỗi lần lưu là một PHIÊN BẢN mới (ai, lúc nào, ghi chú); lưu phải kèm số phiên bản đang sửa, lệch thì từ chối để hai người
 // cùng sửa không ghi đè nhau. Khôi phục một phiên bản cũ cũng là lưu một phiên bản mới. Cấu hình không chứa bí mật nào.

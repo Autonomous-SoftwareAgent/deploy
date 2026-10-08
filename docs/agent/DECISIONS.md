@@ -65,3 +65,23 @@ Tệp này chỉ ghi quyết định kỹ thuật của riêng repo deploy mà p
 - Bối cảnh: workflow dùng chung chỉ SO commit đang chạy với commit đã khai, nên chỉ commit ở đầu nhánh mới được đóng gói. Viết thêm một commit nhật ký sau khi ghim là bản đã khai không bao giờ có bản đóng gói; cả hai dịch vụ cùng rơi vào đúng tình huống đó ngày 2026-10-08. Người dùng nêu thẳng: tờ khai báo ghi commit nào thì phải build commit đó. Ngoài ra thiếu secret Docker Hub thì lần chạy vẫn xanh mà không có bản, và bản đóng xong không được bật thử lần nào.
 - Quyết định: (1) thêm workflow dùng chung `service-pin` chạy trước job test của dịch vụ: đọc tờ khai báo và trả commit chờ đóng gói cùng danh sách commit phải test (đầu nhánh, cộng commit đã khai khi nó nằm dưới đầu nhánh); `service-image` nhận commit đó, lấy đúng nó ra và đóng gói. Điều kiện: commit đã khai, đã có trên nhánh `main` vừa đẩy, chưa có bản. (2) Có commit chờ đóng gói mà thiếu secret thì lần chạy đỏ. (3) Trước khi đẩy, `ci/smoke.js` bật bản theo đúng tờ khai báo (dùng lại `serviceEnv` của lớp domain) cạnh PostgreSQL và broker, gọi đường kiểm sức khỏe; không khỏe thì không đẩy.
 - Hệ quả: thay cho câu "chỉ đóng gói commit ở đầu nhánh" của D-003 và S-029; dịch vụ thêm một job `pin` và một dòng `ref` vào workflow của mình (cách gọi cũ vẫn chạy theo luật cũ). Đầu nhánh hỏng test thì commit đã khai nằm dưới nó cũng không được đóng gói ở lần chạy đó. Chạy thử không bật đồ giả lập đi kèm, nên bản phải tự khởi động được khi thiếu chúng; đường kiểm sức khỏe nông thì chạy thử cũng nông. Nền vẫn CHƯA kiểm được dịch vụ có khai `needs` trước job `image`.
+
+## D-011: Đăng nhập bảng điều khiển bằng hộp thoại của trình duyệt (HTTP Basic), không có phiên
+- Ngày: 2026-10-08. Người dùng yêu cầu thay trang đăng nhập bằng hộp thoại của trình duyệt.
+- Trình duyệt gửi tên và mật khẩu kèm MỌI yêu cầu; máy chủ băm chậm một lần rồi so với một dấu giữ trong bộ nhớ ở các lần sau. Bỏ cookie phiên, `/api/login`, `/api/logout` và màn đăng nhập. Chỉ `/healthz` mở.
+- Hệ quả: không có đăng xuất thật (đóng trình duyệt); vì trình duyệt tự gửi mật khẩu cho cả yêu cầu do trang khác tạo, lệnh ghi phải có header `x-bsn-console` và đúng nguồn gốc (Origin). HTTP Basic gửi mật khẩu ở dạng đọc được trên đường truyền: chỉ chấp nhận được vì bảng điều khiển chỉ nghe ở `127.0.0.1`; rời địa chỉ đó thì phải có HTTPS trước (chưa làm).
+
+## D-012: An toàn của bảng điều khiển: vai trò, cổng an toàn do máy chủ kiểm, duyệt, sổ thao tác
+- Ngày: 2026-10-08. Theo bản design của người dùng ("làm toàn bộ, cần thì quyết định lại").
+- Người gọi là `admin` (mọi quyền), người dùng do admin tạo (Developer, QA, Tech lead, DevOps), hoặc agent dùng token (vai trò `Agent`). Quyền đặt theo vai trò ở từng môi trường: 0 chỉ xem, 1 deploy, 2 deploy và rollback. Mặc định không khóa gì, để hệ đang chạy không đổi hành vi cho tới khi người dùng đặt.
+- Mọi điều kiện (quyền, danh sách người được phép, khung giờ khóa, gõ tên xác nhận, người thứ hai duyệt) do máy chủ kiểm ở cả kiểm tra trước lẫn lúc chạy; các đường `/api` cũ đi qua cùng cổng. Người gửi không tự duyệt được; người duyệt phải có mức 2 ở môi trường đó.
+- Yêu cầu chờ duyệt và sổ các lần chạy sống trong bộ nhớ của bảng điều khiển (mất khi nó khởi động lại; yêu cầu chờ duyệt hết hạn sau 24 giờ). Cấu hình và sổ thao tác nằm trên đĩa.
+- Chưa có: đăng nhập một lần của công ty; thông báo cho người duyệt (họ phải tự mở màn Approvals).
+
+## D-013: Môi trường là một máy; ánh xạ nhánh chỉ là khai báo; giao diện tiếng Anh
+- Ngày: 2026-10-08.
+- Bản design cho tạo và xóa môi trường trên trang. Ở nền này môi trường là một máy chạy hệ (`local` và mỗi `targets/<tên>.json`), nên trang chỉ đặt màu, mô tả, thứ tự và mức bảo vệ; thêm môi trường là thêm tờ khai đích.
+- Bản design có chế độ tự deploy khi có push. S-029 (khai báo commit trước, build sau) không cho việc đó, nên ánh xạ nhánh và quy tắc nhánh được lưu và thử được nhưng không tự chạy gì; trang nói rõ điều này. Muốn bật thì phải có quyết định mới của người dùng.
+- Biểu đồ lỗi và độ trễ, trạng thái `degraded`: chưa có nguồn số liệu nên không vẽ số giả; ô đếm `degraded` luôn là 0.
+- Người dùng chốt giao diện dùng tiếng Anh toàn bộ; chữ gom ở `src/interfaces/web/text.js` và `text-config.js`. Đầu ra của dòng lệnh, tài liệu và chú thích trong mã giữ tiếng Việt; vì vậy các dòng log của một lần chạy (do lệnh in ra) vẫn là tiếng Việt.
+

@@ -27,16 +27,26 @@ Mỗi đợt xong thì cập nhật ô dưới đây, README và STATUS.
 - [x] A4. Lần chạy nhiều mục: `domain/run.js`, `application/runs.js`; tất cả hoặc không ở bước nhận, từng mục độc lập khi chạy; bước `fetch`, `start`, `health`, `record` và log đến dần từ cả ba bộ chạy việc. KHÔNG hủy được lần chạy đã bắt đầu (`NOT_CANCELLABLE`): cắt ngang một lần chuyển bản là không an toàn; tự bật lại bản cũ luôn bật, không tắt được. CÒN: máy đích từ xa phải có bản lệnh mới (nhận `deploy <dịch-vụ> <commit>` và `--events`).
 - [x] A5. Đường `/api/v1` đã có: `overview`, `environments`, `services/{id}` (gồm môi trường, commit, dòng thời gian deploy), `deployments/preflight`, `deployments`, `runs`, `runs/{id}`, `runs/{id}/logs?after=`, `runs/{id}/cancel` (luôn từ chối). Test: `test/fleet.test.js`. CHƯA có: `services/{id}/diff` theo tệp (chỉ có danh sách commit giữa hai bản trong kết quả kiểm tra trước), SSE (trang hỏi định kỳ). Đường `/api` cũ giữ nguyên.
 - [x] A6. Giao diện viết lại theo bản design (2026-10-08): `src/interfaces/web/` gồm `dom.js` (dựng phần tử, chữ chỉ qua textContent, kiểu dáng động qua CSSOM), `api.js`, `store.js` (trạng thái và thao tác), `main.js`, `views/{shell,overview,service,dialog,run}.js`; `styles.css` chép nguyên khối kiểu dáng của trang mẫu cộng vài lớp riêng. Đã mở bằng Edge chạy ngầm ở chế độ `--memory`: đăng nhập, Tổng quan, chọn hai dịch vụ rồi Deploy một lượt, Tiến trình (một bản lên, một bản hỏng tự lùi), Chi tiết dịch vụ (Deployments, Commits), hộp thoại Rollback; không lỗi JavaScript. Tab Logs, Biến môi trường và phần ánh xạ nhánh ghi rõ "chưa có nguồn dữ liệu". CHƯA có: ngăn so sánh commit theo tệp; mục Cấu hình ở thanh bên (đợt C); trang hỏi định kỳ mỗi 5 giây thay cho SSE; giao diện chưa có test tự động (kịch bản trình duyệt nằm ngoài repo).
-- [ ] A7. Đăng nhập bằng hộp thoại của trình duyệt (HTTP Basic) thay trang đăng nhập; agent vẫn dùng token.
+- [x] A7. Đăng nhập bằng hộp thoại của trình duyệt (HTTP Basic) thay trang đăng nhập; agent vẫn dùng token (D-011, 2026-10-08).
+- [x] A8. Giao diện tiếng Anh toàn bộ, chữ gom ở `text.js` và `text-config.js`; nhãn loại dịch vụ (trường `kind` tùy chọn trong tờ khai báo); ô đếm `degraded`; nhãn `protected` (2026-10-08).
 
-### Đợt B: an toàn
-Người dùng và vai trò, phân quyền theo môi trường, gõ tên xác nhận, phê duyệt, khóa theo khung giờ, nhật ký kiểm toán (`/audit`).
+### Đợt B: an toàn (xong 2026-10-08, D-012)
+- [x] Người dùng và vai trò; bảng phân quyền theo môi trường; gõ tên xác nhận; người thứ hai duyệt (màn Approvals); khung giờ khóa hằng tuần; sổ thao tác (`GET /api/v1/audit`, hiện ở mục History).
+- Chưa có: thông báo cho người duyệt; yêu cầu chờ duyệt sống qua lần khởi động lại.
 
-### Đợt C: cấu hình
-Môi trường (tạo, sửa, xóa, sắp thứ tự, màu, mức bảo vệ), ma trận nhánh, quy tắc nhánh và trình thử, phiên bản cấu hình, xem trước tác động, import và export, tự deploy (sau khi người dùng quyết về S-029).
+### Đợt C: cấu hình (xong 2026-10-08, D-013)
+- [x] Sáu mục ở thanh bên: Environments (màu, mô tả, thứ tự, mức bảo vệ), Branch matrix, Branch rules kèm trình thử, Access (quyền và người dùng), History/import/export, Danger zone. Cấu hình có phiên bản, xem trước thay đổi rồi mới lưu, khôi phục bản cũ, về mặc định.
+- KHÔNG làm theo design, có chủ ý: tạo và xóa môi trường trên trang (môi trường là một máy); tự deploy khi có push (S-029); môi trường tạm theo nhánh.
 
 ### Đợt D: quan sát và tiện ích
-Biểu đồ trước và sau deploy, log runtime, biến môi trường, môi trường tạm, gõ lệnh nhanh, cập nhật trực tiếp (SSE).
+- [x] Tab Logs: mấy dòng log cuối của container theo môi trường (`Runtime.logs`; đích từ xa gọi thẳng docker qua SSH). Tab Environment variables: tên biến theo tờ khai báo, bí mật không có giá trị.
+- [ ] Biểu đồ trước và sau deploy (cần hệ giám sát), ngăn so sánh commit theo tệp, gõ lệnh nhanh, cập nhật trực tiếp (SSE; trang đang hỏi định kỳ), test tự động cho giao diện (kịch bản trình duyệt hiện nằm ngoài repo).
+
+## Đã kiểm ngày 2026-10-08
+- 130 test qua (`node --test infra/test/*.test.js infra/ci/test/*.test.js`).
+- Edge chạy ngầm ở chế độ `--memory`: đi hết Tổng quan, chi tiết dịch vụ (cả Logs), hộp thoại, tiến trình, sáu mục cấu hình, tạo người dùng, lưu cấu hình, gõ tên xác nhận, xin duyệt; không lỗi JavaScript.
+- Hệ thật ở máy làm việc qua bảng điều khiển cổng 8901 (đường `/api/v1`, token của agent): deploy payment-hub sang commit cũ hơn đã có bản (12 giây), deploy lại (12 giây), rollback (8 giây), deploy lại (11 giây), lần nào cũng đủ bốn bước; log runtime của ingest đọc được; biến môi trường không lộ giá trị bí mật.
+- CHƯA kiểm: người thật bấm trên trình duyệt với hệ thật; phân quyền, duyệt và giờ khóa với hệ thật (mới có test và trình duyệt với dữ liệu mẫu); đích từ xa `gcp-thu` với bản lệnh mới (máy đó còn giữ bản cũ: chỉ xem được, chưa nhận `deploy <dịch-vụ> <commit>`); log của đích từ xa.
 
 ## Điều chưa có nguồn, phải nói thật trên trang và trong tài liệu
 - Số đo lỗi và độ trễ: chưa có hệ giám sát nào.
