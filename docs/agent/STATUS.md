@@ -13,7 +13,9 @@ Việc còn lại theo chặng và thước đo xong: [../../ROADMAP.md](../../R
 - [x] Lệnh `deploy` và `rollback` chạy ngay trên một máy chủ thật (máy thử GCP `e2-small`, một máy tự chạy lệnh cho chính nó)
 - [x] Mã chia bốn lớp có test giữ ranh giới; bảng điều khiển web thay cho nút bấm trên GitHub (D-007, D-008)
 - [x] Bảng điều khiển ở máy này điều khiển hệ trên một máy GCP thật qua SSH (`console --target`, D-009); đã thử thật deploy, bản hỏng, rollback
-- [ ] Người dùng nghiệm thu bằng tay với máy GCP thật
+- [x] Đường đóng gói chạy lại ở tổ chức `Autonomous-SoftwareAgent`: khai commit nào thì test, đóng gói và chạy thử đúng commit đó (D-010); đã chạy thật với payment-hub, kèm deploy và rollback qua bảng điều khiển ở máy (2026-10-08)
+- [ ] ingest lên GitHub theo luật đóng gói mới (việc của phiên ingest; tờ `infra-to-ingest-job-pin-va-day-len-github`)
+- [ ] Người dùng nghiệm thu bằng tay với máy GCP thật (máy đó đang giữ bản cũ và lịch sử cũ: phải dựng lại trước)
 - [ ] Đóng gói bảng điều khiển; dịch vụ gọi workflow dùng chung theo nhãn phiên bản
 - [ ] Hai máy trên GCP: máy quản trị chạy bảng điều khiển, máy chạy thật chạy hệ (mỗi thứ tính tiền phải hỏi người dùng)
 - [ ] Sẵn sàng chạy thật: cấu hình và bí mật thật, máy chủ không cần repo dịch vụ, người duyệt trước khi lên, sao lưu sổ deploy
