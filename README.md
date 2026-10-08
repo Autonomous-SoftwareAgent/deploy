@@ -195,6 +195,15 @@ Bộ quét bí mật (`ci/scan-image.js`) chỉ bắt các dạng token có khu�
 
 ## Đã kiểm và chưa kiểm
 
+Đã kiểm ngày 2026-10-08, ở tổ chức `Autonomous-SoftwareAgent` (các lần chạy ghi ở các khối bên dưới thuộc tổ chức cũ đã xóa, không còn xem được):
+
+- Repo deploy: workflow `ci` xanh (lần chạy 37717124730).
+- `svc-payment-hub`, lần chạy 37717244528: tờ khai báo ghi `d942b02259e5`, nằm dưới đầu nhánh `8f9f1ef`. Job `pin` chọn đúng commit đã khai; job `test` chạy trên cả hai commit (mỗi bên 773 ca, 771 qua, 0 hỏng, 2 bỏ qua vì cần Kafka thật); job `image` đóng gói đúng commit đã khai, quét bí mật không thấy gì trong các dạng được kiểm, bật thử bản cạnh PostgreSQL và nhận 2xx ở `/health`, đẩy `nguyen1410/svc-payment-hub:main-d942b02259e5`.
+- `svc-payment-hub`, lần chạy 37719609170: ghim đầu nhánh `dd90147e95c3`; xanh, dùng lại lớp từ bản trước, chạy thử khỏe, đẩy `main-dd90147e95c3`.
+- Qua bảng điều khiển ở máy (đích là hệ local) với hai bản trên: Deploy 24 giây và 20 giây, Rollback về bản liền trước 8 giây (tờ khai báo được ghi lại), Deploy lại 12 giây; sau mỗi lần đường `/health` thật của dịch vụ trả 200; dịch vụ còn lại không bị khởi động lại.
+- `ci/smoke.js` ở máy làm việc: khỏe với bản của payment-hub và của ingest, không khỏe với một bản không khởi động được, không để lại container hay mạng.
+- Bảy bản đóng gói cũ trên Docker Hub đã xóa theo lệnh người dùng.
+
 Đã kiểm ngày 2026-10-05, trên máy này:
 
 - `payment-hub` và `ingest` chạy cùng lúc từ commit được ghim ở cổng 8000 và 8001, đều báo khỏe.
