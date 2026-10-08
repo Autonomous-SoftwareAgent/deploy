@@ -63,3 +63,29 @@ Design được tách thành yêu cầu, contract, tiêu chí nghiệm thu và t
   - Gặp thật trong lúc thử: mạng của máy làm việc rớt DNS một lúc thì trang báo "không đọc được trạng thái từ máy đích" kèm lý do; ssh của Windows từ chối tệp khóa vì quyền quá rộng, dùng BSN_SSH trỏ tới ssh của Git thì chạy.
   - Chưa kiểm: người dùng tự bấm trên trình duyệt với đích thật (đang chờ nghiệm thu); bảng điều khiển chạy trên Linux; hai người cùng dùng; máy đích tắt bật lại trong lúc bảng điều khiển đang chạy (mới có test với ssh giả).
 - tasks:
+
+## BDK-S-003: Bảng điều khiển theo môi trường: tổng quan, chi tiết dịch vụ, kiểm tra trước, lần chạy nhiều dịch vụ (theo bản design của người dùng)
+- from: BDK-D-003
+- derived_from: 68ded374
+- status: ready
+- requirement:
+  - Môi trường: local cùng mọi targets/<tên>.json hợp lệ; tờ sai thì bỏ qua đích đó và báo trên trang. Một môi trường không trả lời không làm hỏng các môi trường khác (ô của nó ghi "không hỏi được").
+  - Sức khỏe của một ô: đang có lần đưa lên chạy dở thì deploying; không chạy mà sổ ghi đã deploy thì failed; trạng thái container có unhealthy thì failed, có starting thì deploying; còn lại healthy; không chạy và sổ trống thì chưa deploy. Chưa có trạng thái degraded vì chưa có nguồn số đo.
+  - Lệch phiên bản: số commit trong lịch sử từ bản đang chạy (không tính) tới commit đã khai (có tính); không thấy trong lịch sử thì 0 và đánh dấu "khác bản đã khai".
+  - Tổng quan: nhóm theo project (thiếu thì "Chưa xếp nhóm"); điểm ưu tiên = 1000 x số ô hỏng + 500 x số ô đang đưa lên + min(tổng lệch, 99); lọc theo nhóm, môi trường, trạng thái, tên hoặc lời nhắn commit; số tổng tính trên mọi dịch vụ, không theo bộ lọc.
+  - Chi tiết dịch vụ: từng môi trường, lịch sử commit kèm "đã có bản" (theo nhãn trên kho) và "đang chạy ở đâu", dòng thời gian deploy gộp từ sổ của mọi môi trường.
+  - Kiểm tra trước, mỗi mục: từ bản nào sang bản nào, các commit ở giữa và hướng, gợi ý; mã chặn ENV_UNREACHABLE, NOT_IN_ENVIRONMENT, COMMIT_UNKNOWN, ALREADY_RUNNING, BUILD_NOT_READY, NOTHING_TO_ROLLBACK, ROLLBACK_TARGET_NEWER, NEVER_RAN_HERE, RUN_IN_PROGRESS; cảnh báo DEPLOY_OLDER_COMMIT, NOT_IN_HISTORY, BUILD_UNKNOWN. Không ghi gì.
+  - Lần chạy: máy chủ kiểm tra lại; có mục bị chặn thì không mục nào chạy; mỗi mục chạy bằng đúng lệnh điều khiển của môi trường đó; bước fetch, start, health, record; bản mới hỏng mà bật lại bản cũ được thì mục là rolled_back, không thì failed; log có số thứ tự để trang hỏi dần; giữ 30 lần chạy gần nhất trong bộ nhớ.
+  - Lệnh deploy <dịch-vụ> [commit]: đưa đúng commit đó lên nếu đã có bản; không sửa tờ khai báo. --json --events in từng dòng {event:'step',step,status,phase} và {event:'log',text}; dòng cuối vẫn là kết quả.
+- contract:
+  GET /api/v1/overview?projectId=&environmentId=&status=&q= ; GET /api/v1/environments ; GET /api/v1/services/{id} ; POST /api/v1/deployments/preflight {kind, environmentId, items:[{serviceId, targetSha?}]} ; POST /api/v1/deployments (cùng thân; 201 {runId, run}) ; GET /api/v1/runs?status=active ; GET /api/v1/runs/{id} ; GET /api/v1/runs/{id}/logs?after=<seq> ; POST /api/v1/runs/{id}/cancel (luôn 409 NOT_CANCELLABLE).
+  Lỗi: {error:{code, message, details}} với 400 BAD_INPUT, 404 UNKNOWN_SERVICE hoặc UNKNOWN_ENVIRONMENT hoặc NOT_FOUND, 409 RUN_IN_PROGRESS, 422 BLOCKED (details.preflight), 502 INVALID_DECLARATIONS. Mọi đường cần đăng nhập như các đường /api cũ.
+  Dạng trả về theo design/deploy-console.api.md mục 5.1, 5.3, 5.4, với các trường chưa có nguồn bị bỏ (metrics, migration, dependents, protection, approval).
+  Cổng: Source.log(repo, limit), Registry.tags(repository), JobExecutor.run(job, {onEvent}).
+- acceptance:
+  - test/fleet.test.js: luật sức khỏe, lệch phiên bản, điểm ưu tiên; mọi mã chặn và cảnh báo của kiểm tra trước; máy trạng thái của một mục; các đường /api/v1 trên hai môi trường trong bộ nhớ (cột theo danh sách môi trường, bộ lọc, 401 khi chưa đăng nhập, chi tiết dịch vụ, kiểm tra trước không đổi gì, deploy hai dịch vụ một lượt với một bản hỏng tự lùi, chỉ môi trường được chọn bị đổi, 422 tất cả hoặc không, 409 khi đang chạy dở, cùng dịch vụ ở môi trường khác chạy song song, hủy bị từ chối).
+  - test/deploy.test.js: deploy commit được chọn, tiền tố, commit chưa có bản, mã sai; thứ tự sự kiện bước khi thành công và khi bản mới không khỏe; Source.log trên repo thật.
+  - test/job-executor.test.js và test/remote.test.js: ba bộ chạy việc báo dần sự kiện, không báo lặp.
+  - Đã chạy thật ngày 2026-10-08: giao diện mở bằng Edge chạy ngầm ở chế độ bộ nhớ, đi hết các màn, không lỗi JavaScript; bảng điều khiển ở máy làm việc đọc đúng trạng thái của hai môi trường thật (máy làm việc và một máy GCP).
+  - Chưa kiểm: deploy thật qua /api/v1 trên hệ thật; người dùng tự bấm trên trang; đích từ xa nhận deploy theo commit (máy GCP còn bản lệnh cũ); giao diện chưa có test tự động.
+- tasks:
