@@ -14,7 +14,7 @@ Việc còn lại theo chặng và thước đo xong: [../../ROADMAP.md](../../R
 - [x] Mã chia bốn lớp có test giữ ranh giới; bảng điều khiển web thay cho nút bấm trên GitHub (D-007, D-008)
 - [x] Bảng điều khiển ở máy này điều khiển hệ trên một máy GCP thật qua SSH (`console --target`, D-009); đã thử thật deploy, bản hỏng, rollback
 - [x] Đường đóng gói chạy lại ở tổ chức `Autonomous-SoftwareAgent`: khai commit nào thì test, đóng gói và chạy thử đúng commit đó (D-010); đã chạy thật với payment-hub, kèm deploy và rollback qua bảng điều khiển ở máy (2026-10-08)
-- [ ] ingest lên GitHub theo luật đóng gói mới (việc của phiên ingest; tờ `infra-to-ingest-job-pin-va-day-len-github`)
+- [x] ingest lên GitHub theo luật đóng gói mới (2026-10-08, người dùng giao phiên infra làm: repo `svc-ingest`, lần chạy 37752736196 xanh với ba job, bản `main-551b443fefdb` có trên Docker Hub, đã deploy ở hệ local qua bảng điều khiển trong 24 giây)
 - [ ] Người dùng nghiệm thu bằng tay với máy GCP thật (máy đó đang giữ bản cũ và lịch sử cũ: phải dựng lại trước)
 - [ ] Đóng gói bảng điều khiển; dịch vụ gọi workflow dùng chung theo nhãn phiên bản
 - [ ] Hai máy trên GCP: máy quản trị chạy bảng điều khiển, máy chạy thật chạy hệ (mỗi thứ tính tiền phải hỏi người dùng)
@@ -27,7 +27,7 @@ Ghi ngày 2026-10-08 để phiên sau nối tiếp. Các mục dưới đây CH�
 
 **1. GitHub và đường đóng gói đã chạy lại (2026-10-08); còn các việc sau.**
 - Hiện trạng: tổ chức `Autonomous-SoftwareAgent` có hai repo công khai `deploy` và `svc-payment-hub` (tạo và đẩy theo lệnh người dùng). Repo gốc `BSN_/` (harness) chỉ ở máy, không bao giờ đẩy (S-035). Lịch sử của repo này đã gộp ngày 2026-10-08 (S-034): mọi mã commit cũ ghi trong tài liệu không còn tồn tại. Các số lần chạy workflow của ngày 2026-10-06 và 2026-10-07 trong `README.md` thuộc tổ chức cũ, không còn xem được.
-- `ingest` CHƯA lên GitHub: repo `svc-ingest` chưa tạo, workflow của nó chưa có job `pin` (D-010), tờ khai báo đang ghi một commit chưa có bản (`images` báo CHỜ BUILD). Việc của phiên ingest; hệ local vẫn chạy bản cũ của ingest từ ảnh có sẵn ở máy.
+- (ĐÃ XONG ngày 2026-10-08, xem mục tiêu ở trên; dòng dưới là tình trạng trước đó.) `ingest` CHƯA lên GitHub: repo `svc-ingest` chưa tạo, workflow của nó chưa có job `pin` (D-010), tờ khai báo đang ghi một commit chưa có bản (`images` báo CHỜ BUILD). Việc của phiên ingest; hệ local vẫn chạy bản cũ của ingest từ ảnh có sẵn ở máy.
 - Bảy bản cũ trên Docker Hub đã xóa theo lệnh người dùng: không còn kéo được bản cũ nào. Máy làm việc còn giữ ảnh cũ ở máy.
 - Máy GCP `bsn-thu-1` vẫn chạy bản cũ từ ảnh có sẵn trên máy đó, và bản sao repo deploy trên máy đó là lịch sử cũ của tổ chức đã xóa: không nhận được bản mới cho tới khi dựng lại (lấy lại repo từ đầu). Chưa làm; máy vẫn tính tiền.
 - Token Docker Hub trong secret của tổ chức là token dùng để phát triển ở máy làm việc; người dùng nói sẽ tự đổi khi hệ ổn định.
